@@ -91,7 +91,7 @@ export default function TendenciasPage() {
       melhoria: ultima - primeira,
       quantidade: avalsArea.length,
     };
-  }).filter(a => a.quantidade > 0).sort((a, b) => b.melhoria - a.melhoria);
+  }).filter(a => (a.quantidade ?? 0) > 0).sort((a, b) => b.melhoria - a.melhoria);
 
   if (loading) {
     return (
