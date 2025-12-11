@@ -1,0 +1,164 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 0, 0, 0;
+    --background-start-rgb: 214, 219, 220;
+    --background-end-rgb: 255, 255, 255;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+      to bottom,
+      transparent,
+      rgb(var(--background-end-rgb))
+    )
+    rgb(var(--background-start-rgb));
+}
+
+/* Garantir visibilidade de texto em fundo escuro */
+.bg-black h1,
+.bg-black h2,
+.bg-black h3,
+.bg-black h4,
+.bg-black h5,
+.bg-black h6,
+.bg-black p,
+.bg-black span,
+.bg-black div:not(.bg-white):not(.bg-gray-50):not(.bg-gray-100) {
+  color: #ffffff;
+}
+
+.bg-gray-900 h1,
+.bg-gray-900 h2,
+.bg-gray-900 h3,
+.bg-gray-900 h4,
+.bg-gray-900 h5,
+.bg-gray-900 h6,
+.bg-gray-900 p:not(.text-gray-400):not(.text-gray-500),
+.bg-gray-900 span:not(.text-gray-400):not(.text-gray-500),
+.bg-gray-900 div:not(.bg-white):not(.bg-gray-50):not(.bg-gray-100) {
+  color: #ffffff;
+}
+
+/* Garantir que cards escuros tenham texto branco */
+.bg-gray-900 h1,
+.bg-gray-900 h2,
+.bg-gray-900 h3,
+.bg-gray-900 h4,
+.bg-gray-900 h5,
+.bg-gray-900 h6,
+.bg-gray-900 p:not(.text-gray-400):not(.text-gray-500),
+.bg-gray-900 span:not(.text-gray-400):not(.text-gray-500),
+.bg-gray-900 label:not(.text-gray-400),
+.bg-gray-900 input:not([type="checkbox"]):not([type="radio"]),
+.bg-gray-900 select,
+.bg-gray-900 textarea {
+  color: #ffffff !important;
+}
+
+.bg-gray-900 input::placeholder,
+.bg-gray-900 textarea::placeholder {
+  color: #9CA3AF !important;
+}
+
+/* Cards brancos ainda podem existir em alguns lugares - manter texto escuro */
+.bg-white h1,
+.bg-white h2,
+.bg-white h3,
+.bg-white h4,
+.bg-white h5,
+.bg-white h6,
+.bg-white p,
+.bg-white span,
+.bg-white label,
+.bg-white input:not([type="checkbox"]):not([type="radio"]),
+.bg-white select,
+.bg-white textarea {
+  color: #111827 !important;
+}
+
+.bg-white input::placeholder,
+.bg-white textarea::placeholder {
+  color: #6B7280 !important;
+}
+
+/* Garantir que selects e options tenham texto visível */
+select {
+  color: #111827 !important;
+  background-color: #ffffff !important;
+}
+
+select option {
+  color: #111827 !important;
+  background-color: #ffffff !important;
+}
+
+/* Estilos para selects em fundo escuro */
+.bg-gray-900 select,
+.bg-gray-800 select {
+  color: #ffffff !important;
+  background-color: #1F2937 !important;
+}
+
+.bg-gray-900 select option,
+.bg-gray-800 select option {
+  color: #ffffff !important;
+  background-color: #1F2937 !important;
+}
+
+@layer components {
+  /* Card padrão escuro com borda azul (mesmo estilo do login) */
+  .card-white {
+    @apply bg-gray-900 rounded-lg shadow-2xl border border-blue-500;
+  }
+
+  .card-white-header {
+    @apply px-6 py-4 border-b border-blue-500;
+  }
+
+  /* Garantir que todos os textos dentro de card-white sejam brancos */
+  .card-white h1,
+  .card-white h2,
+  .card-white h3,
+  .card-white h4,
+  .card-white h5,
+  .card-white h6,
+  .card-white p:not(.text-gray-400):not(.text-gray-500),
+  .card-white span:not(.text-gray-400):not(.text-gray-500),
+  .card-white label:not(.text-gray-400),
+  .card-white th,
+  .card-white td:not(.text-gray-400):not(.text-gray-500),
+  .card-white div:not(.text-gray-400):not(.text-gray-500) {
+    color: #ffffff !important;
+  }
+
+  .card-white input:not([type="checkbox"]):not([type="radio"]),
+  .card-white select,
+  .card-white textarea {
+    color: #ffffff !important;
+    background-color: #1F2937 !important;
+  }
+
+  .card-white input::placeholder,
+  .card-white textarea::placeholder {
+    color: #9CA3AF !important;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+

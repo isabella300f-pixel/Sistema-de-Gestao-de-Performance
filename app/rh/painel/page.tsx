@@ -1,0 +1,247 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Colaborador, Avaliacao11, IndicadoresColaborador } from '@/types';
+import { getAllColaboradores, getAllAvaliacoes11, getAvaliacoes11ByColaborador } from '@/lib/data';
+import { formatDate, calculateScore } from '@/lib/utils';
+import { Users, TrendingUp, TrendingDown, AlertTriangle, Search } from 'lucide-react';
+
+export default function RHPainelPage() {
+  const router = useRouter();
+  const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
+  const [avaliacoes, setAvaliacoes] = useState<Avaliacao11[]>([]);
+  const [filtroArea, setFiltroArea] = useState<string>('');
+  const [filtroGestor, setFiltroGestor] = useState<string>('');
+  const [busca, setBusca] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const currentUserStr = localStorage.getItem('currentUser');
+    if (!currentUserStr) {
+      router.push('/');
+      return;
+    }
+
+    try {
+      const currentUser = JSON.parse(currentUserStr);
+      if (currentUser.role !== 'rh') {
+        router.push('/');
+        return;
+      }
+
+      const cols = getAllColaboradores().filter(c => c.status === 'ativo');
+      const avals = getAllAvaliacoes11();
+
+      setColaboradores(cols);
+      setAvaliacoes(avals);
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [router]);
+
+  const getIndicadores = (colaboradorId: string): IndicadoresColaborador => {
+    const avalsColab = avaliacoes.filter(
+      a => a.colaboradorId === colaboradorId && a.status === 'finalizado'
+    );
+
+    if (avalsColab.length === 0) {
+      return {
+        colaboradorId,
+        mediaLeadsTrabalhados: 0,
+        mediaQualidadeCRM: 0,
+        mediaConversaoFunil: 0,
+        totalAvaliacoes: 0,
+        tendencia: 'estavel',
+        riscoDesligamento: 'baixo',
+        scoreGeral: 0,
+      };
+    }
+
+    const scores = avalsColab.map(a => calculateScore(a));
+    const scoreGeral = scores.reduce((a, b) => a + b, 0) / scores.length;
+
+    const ultimaAvaliacao = avalsColab.sort(
+      (a, b) => new Date(b.data).getTime() - new Date(a.data).getTime()
+    )[0];
+
+    const penultimaAvaliacao = avalsColab.length > 1
+      ? avalsColab.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime())[1]
+      : null;
+
+    let tendencia: 'melhora' | 'piora' | 'estavel' = 'estavel';
+    if (penultimaAvaliacao) {
+      const scoreAtual = calculateScore(ultimaAvaliacao);
+      const scoreAnterior = calculateScore(penultimaAvaliacao);
+      if (scoreAtual > scoreAnterior + 5) tendencia = 'melhora';
+      else if (scoreAtual < scoreAnterior - 5) tendencia = 'piora';
+    }
+
+    let riscoDesligamento: 'baixo' | 'medio' | 'alto' = 'baixo';
+    if (scoreGeral < 50) riscoDesligamento = 'alto';
+    else if (scoreGeral < 70) riscoDesligamento = 'medio';
+
+    return {
+      colaboradorId,
+      mediaLeadsTrabalhados: 0,
+      mediaQualidadeCRM: 0,
+      mediaConversaoFunil: 0,
+      totalAvaliacoes: avalsColab.length,
+      ultimaAvaliacao: ultimaAvaliacao.data,
+      tendencia,
+      riscoDesligamento,
+      scoreGeral: Math.round(scoreGeral),
+    };
+  };
+
+  const colaboradoresFiltrados = colaboradores.filter((colab) => {
+    if (filtroArea && colab.area !== filtroArea) return false;
+    if (filtroGestor && colab.gestorId !== filtroGestor) return false;
+    if (busca && !colab.name.toLowerCase().includes(busca.toLowerCase())) return false;
+    return true;
+  });
+
+  const areas = Array.from(new Set(colaboradores.map(c => c.area)));
+  const gestores = Array.from(new Set(colaboradores.map(c => c.gestorNome)));
+
+  if (loading) {
+    return <div className="text-center py-12">Carregando...</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-white">Painel Geral - RH</h1>
+        <p className="mt-2 text-gray-300">Acompanhamento de todos os colaboradores</p>
+      </div>
+
+      {/* Filtros */}
+      <div className="card-white p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Buscar</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Nome do colaborador..."
+                className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-blue-500/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder-gray-400"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Área</label>
+            <select
+              value={filtroArea}
+              onChange={(e) => setFiltroArea(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
+            >
+              <option value="" className="bg-gray-800">Todas as áreas</option>
+              {areas.map((area) => (
+                <option key={area} value={area} className="bg-gray-800">
+                  {area}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Gestor</label>
+            <select
+              value={filtroGestor}
+              onChange={(e) => setFiltroGestor(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white"
+            >
+              <option value="" className="bg-gray-800">Todos os gestores</option>
+              {gestores.map((gestor) => (
+                <option key={gestor} value={gestor} className="bg-gray-800">
+                  {gestor}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Lista de colaboradores */}
+      <div className="card-white">
+        <div className="card-white-header">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-white">Colaboradores</h2>
+            <span className="text-sm text-gray-300">{colaboradoresFiltrados.length} colaboradores</span>
+          </div>
+        </div>
+        <div className="divide-y divide-blue-500/30">
+          {colaboradoresFiltrados.length === 0 ? (
+            <div className="px-6 py-12 text-center text-gray-400">
+              <Users className="mx-auto h-12 w-12 text-gray-500 mb-4" />
+              <p>Nenhum colaborador encontrado</p>
+            </div>
+          ) : (
+            colaboradoresFiltrados.map((colab) => {
+              const indicadores = getIndicadores(colab.id);
+              return (
+                <div key={colab.id} className="px-6 py-4 hover:bg-gray-800/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3">
+                        <h3 className="text-lg font-medium text-white">{colab.name}</h3>
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full border ${
+                          indicadores.riscoDesligamento === 'alto'
+                            ? 'bg-red-500/20 text-red-400 border-red-500/50'
+                            : indicadores.riscoDesligamento === 'medio'
+                            ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50'
+                            : 'bg-green-500/20 text-green-400 border-green-500/50'
+                        }`}>
+                          {indicadores.riscoDesligamento === 'alto' && <><AlertTriangle size={12} className="inline mr-1" /> Alto Risco</>}
+                          {indicadores.riscoDesligamento === 'medio' && 'Médio Risco'}
+                          {indicadores.riscoDesligamento === 'baixo' && 'Baixo Risco'}
+                        </span>
+                        {indicadores.tendencia === 'melhora' && (
+                          <TrendingUp className="h-5 w-5 text-green-400" />
+                        )}
+                        {indicadores.tendencia === 'piora' && (
+                          <TrendingDown className="h-5 w-5 text-red-400" />
+                        )}
+                      </div>
+                      <p className="mt-1 text-sm text-gray-300">{colab.cargo} • {colab.area} • {colab.gestorNome}</p>
+                      <div className="mt-2 flex items-center space-x-4 text-sm">
+                        <span className="text-gray-300">
+                          Score: <span className={`font-semibold ${
+                            indicadores.scoreGeral >= 80 ? 'text-green-400' : 
+                            indicadores.scoreGeral >= 60 ? 'text-yellow-400' : 'text-red-400'
+                          }`}>
+                            {indicadores.scoreGeral}
+                          </span>
+                        </span>
+                        <span className="text-gray-300">
+                          Avaliações: {indicadores.totalAvaliacoes}
+                        </span>
+                        {indicadores.ultimaAvaliacao && (
+                          <span className="text-gray-300">
+                            Última: {formatDate(indicadores.ultimaAvaliacao)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Link
+                      href={`/rh/colaboradores/${colab.id}`}
+                      className="ml-4 px-4 py-2 text-sm font-medium text-blue-400 hover:text-blue-300 hover:bg-blue-500/20 rounded-md border border-blue-500/50"
+                    >
+                      Ver Detalhes
+                    </Link>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
