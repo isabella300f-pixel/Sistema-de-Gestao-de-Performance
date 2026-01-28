@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { User } from '@/types';
-import { LayoutDashboard, TrendingUp, TrendingDown, Users, BarChart3 } from 'lucide-react';
+import { LayoutDashboard, TrendingUp, TrendingDown, Users, BarChart3, Table } from 'lucide-react';
 
 export default function GestaoLayout({
   children,
@@ -44,6 +44,7 @@ export default function GestaoLayout({
 
   const menuItems = [
     { label: 'Dashboard Executivo', href: '/gestao/dashboard', icon: <LayoutDashboard size={20} /> },
+    { label: 'Registros Diários', href: '/gestao/registros-diarios', icon: <Table size={20} /> },
     { label: 'Melhores', href: '/gestao/melhores', icon: <TrendingUp size={20} /> },
     { label: 'Piores', href: '/gestao/piores', icon: <TrendingDown size={20} /> },
     { label: 'Turnover', href: '/gestao/turnover', icon: <Users size={20} /> },

@@ -425,6 +425,55 @@ let avaliacoes11: Avaliacao11[] = [];
 let registrosDiarios: RegistroDiario[] = [];
 let avaliacoesRH: AvaliacaoRH[] = [];
 
+// Inicializar dados de exemplo baseados na planilha
+export function initializeRegistrosDiarios() {
+  if (registrosDiarios.length > 0) return; // Já inicializado
+  
+  // Dados baseados na planilha do Google Sheets
+  const dadosPlanilha = [
+    { data: '2025-07-16', diaSemana: 'Quarta', vendedor: 'JOSE MARTINS', ligacoes: 197, atendidas: 18, aberturas: 1, desqualificados: 0, formularios: 0, onlines: 0 },
+    { data: '2025-07-17', diaSemana: 'Quinta', vendedor: 'KAUAN SILVA', ligacoes: 111, atendidas: 8, aberturas: 0, desqualificados: 0, formularios: 0, onlines: 0 },
+    { data: '2025-07-18', diaSemana: 'Sexta', vendedor: 'FELIPE CARLO', ligacoes: 150, atendidas: 6, aberturas: 1, desqualificados: 1, formularios: 0, onlines: 0 },
+    { data: '2025-07-19', diaSemana: 'Sábado', vendedor: 'FELIPE BAEZI', ligacoes: 128, atendidas: 18, aberturas: 0, desqualificados: 0, formularios: 0, onlines: 0 },
+    { data: '2025-07-20', diaSemana: 'Domingo', vendedor: 'DANILO MIRAN', ligacoes: 90, atendidas: 14, aberturas: 5, desqualificados: 0, formularios: 0, onlines: 0 },
+    { data: '2025-07-21', diaSemana: 'Segunda', vendedor: 'DAIANE MOREI', ligacoes: 102, atendidas: 6, aberturas: 1, desqualificados: 1, formularios: 0, onlines: 0 },
+    { data: '2025-07-22', diaSemana: 'Terça', vendedor: 'LUIZ RIBEIRO', ligacoes: 130, atendidas: 9, aberturas: 2, desqualificados: 2, formularios: 1, onlines: 1 },
+    { data: '2025-07-23', diaSemana: 'Quarta', vendedor: 'ENNIO BARROSO', ligacoes: 186, atendidas: 9, aberturas: 4, desqualificados: 4, formularios: 4, onlines: 4 },
+    { data: '2025-07-24', diaSemana: 'Quinta', vendedor: 'THIAGO CASTRO', ligacoes: 49, atendidas: 9, aberturas: 4, desqualificados: 3, formularios: 3, onlines: 0 },
+    { data: '2025-07-25', diaSemana: 'Sexta', vendedor: 'GUILHERME MACHADO', ligacoes: 135, atendidas: 5, aberturas: 1, desqualificados: 1, formularios: 1, onlines: 2 },
+    { data: '2025-07-26', diaSemana: 'Sábado', vendedor: 'GABRIEL CUNHA', ligacoes: 146, atendidas: 10, aberturas: 0, desqualificados: 0, formularios: 0, onlines: 0 },
+    { data: '2025-07-27', diaSemana: 'Domingo', vendedor: 'RICHARD MICHAEL', ligacoes: 97, atendidas: 20, aberturas: 2, desqualificados: 2, formularios: 2, onlines: 0 },
+    { data: '2025-07-28', diaSemana: 'Segunda', vendedor: 'JOSE MARTINS', ligacoes: 250, atendidas: 12, aberturas: 1, desqualificados: 0, formularios: 0, onlines: 0 },
+    { data: '2025-07-29', diaSemana: 'Terça', vendedor: 'ENNIO BARROSO', ligacoes: 191, atendidas: 11, aberturas: 3, desqualificados: 2, formularios: 2, onlines: 1 },
+    { data: '2025-07-30', diaSemana: 'Quarta', vendedor: 'FELIPE CARLO', ligacoes: 119, atendidas: 3, aberturas: 1, desqualificados: 1, formularios: 1, onlines: 1 },
+    { data: '2025-07-31', diaSemana: 'Quinta', vendedor: 'KAUAN SILVA', ligacoes: 150, atendidas: 7, aberturas: 0, desqualificados: 0, formularios: 0, onlines: 0 },
+    { data: '2025-08-01', diaSemana: 'Sexta', vendedor: 'THIAGO CASTRO', ligacoes: 73, atendidas: 7, aberturas: 4, desqualificados: 2, formularios: 2, onlines: 2 },
+    { data: '2025-08-02', diaSemana: 'Sábado', vendedor: 'GUILHERME MACHADO', ligacoes: 103, atendidas: 11, aberturas: 4, desqualificados: 4, formularios: 2, onlines: 2 },
+  ];
+
+  dadosPlanilha.forEach((item, index) => {
+    const colaboradorId = getColaboradorIdByName(item.vendedor);
+    if (colaboradorId) {
+      registrosDiarios.push({
+        id: `registro-${index + 1}`,
+        colaboradorId,
+        data: item.data,
+        diaSemana: item.diaSemana,
+        numeroLigacoes: item.ligacoes,
+        ligacoesAtendidas: item.atendidas,
+        numeroAberturas: item.aberturas,
+        desqualificados: item.desqualificados > 0,
+        numeroFormularios: item.formularios,
+        numeroOnlines: item.onlines,
+        callsAgendadas: 0,
+        callsRealizadas: 0,
+        testesVocacionais: 0,
+        diagnosticos: 0,
+      });
+    }
+  });
+}
+
 export function getAvaliacoes11ByColaborador(colaboradorId: string): Avaliacao11[] {
   return avaliacoes11
     .filter(a => a.colaboradorId === colaboradorId)
@@ -470,6 +519,35 @@ export function getRegistrosDiariosByColaborador(colaboradorId: string): Registr
     .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 }
 
+export function getAllRegistrosDiarios(): RegistroDiario[] {
+  return registrosDiarios.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+}
+
+export function getRegistrosDiariosByDateRange(dataInicio: string, dataFim: string): RegistroDiario[] {
+  return registrosDiarios
+    .filter(r => {
+      const dataRegistro = new Date(r.data);
+      const inicio = new Date(dataInicio);
+      const fim = new Date(dataFim);
+      return dataRegistro >= inicio && dataRegistro <= fim;
+    })
+    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+}
+
+export function getRegistrosDiariosByVendedor(vendedorNome: string): RegistroDiario[] {
+  // Buscar colaborador pelo nome
+  const colaborador = colaboradores.find(c => 
+    c.name.toUpperCase().includes(vendedorNome.toUpperCase()) || 
+    vendedorNome.toUpperCase().includes(c.name.toUpperCase())
+  );
+  
+  if (!colaborador) return [];
+  
+  return registrosDiarios
+    .filter(r => r.colaboradorId === colaborador.id)
+    .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+}
+
 export function createRegistroDiario(registro: Omit<RegistroDiario, 'id'>): RegistroDiario {
   const novo: RegistroDiario = {
     ...registro,
@@ -477,6 +555,66 @@ export function createRegistroDiario(registro: Omit<RegistroDiario, 'id'>): Regi
   };
   registrosDiarios.push(novo);
   return novo;
+}
+
+// Função auxiliar para mapear nome do vendedor para ID do colaborador
+function getColaboradorIdByName(nome: string): string | null {
+  // Normalizar nomes para comparação
+  const nomeNormalizado = nome.toUpperCase().trim();
+  
+  // Mapeamento direto baseado nos dados da planilha
+  const mapeamento: Record<string, string> = {
+    'JOSE MARTINS': 'colab-8',
+    'JOSE ROBERTO MARTINS': 'colab-8',
+    'KAUAN SILVA': 'colab-15',
+    'KAUAN ALEIXO DA SILVA': 'colab-15',
+    'FELIPE CARLO': 'colab-11',
+    'FELIPE CARLO DO CARMO': 'colab-11',
+    'FELIPE BAEZI': 'colab-5',
+    'FELIPE JOSE BAEZI LAGES': 'colab-5',
+    'DANILO MIRAN': 'colab-2', // Assumindo que é RENATO ou similar
+    'DAIANE MOREI': 'colab-9',
+    'DAIANE DA SILVA MOREIRA': 'colab-9',
+    'LUIZ RIBEIRO': 'colab-13',
+    'LUIZ HENRIQUE RIBEIRO DA SILVA': 'colab-13',
+    'ENNIO BARROSO': 'colab-10',
+    'ENNIO MIRANDA BARROSO': 'colab-10',
+    'THIAGO CASTRO': 'colab-14',
+    'THIAGO DE FELIPE CASTRO': 'colab-14',
+    'GUILHERME MACHADO': 'colab-7',
+    'GUILHERME MACHADO DA SILVA': 'colab-7',
+    'GABRIEL CUNHA': 'colab-6',
+    'GABRIEL CUNHA BAEZI CARDOSO': 'colab-6',
+    'RICHARD MICHAEL': 'colab-3',
+    'RICHARD MICHAEL DA SILVA CASTRO': 'colab-3',
+    'JAMILE RIBEIRO': 'colab-1',
+    'RENATO FERREIRA': 'colab-2',
+    'RENATO DE ALMEIDA FERREIRA': 'colab-2',
+    'JOÃO CARRARO': 'colab-12',
+    'JOÃO VICTOR RODRIGUES CARRARO': 'colab-12',
+    'BARBARA SANTOS': 'colab-4',
+    'BARBARA STEFANY DOS SANTOS MOREIRA': 'colab-4',
+  };
+  
+  // Tentar mapeamento direto
+  if (mapeamento[nomeNormalizado]) {
+    return mapeamento[nomeNormalizado];
+  }
+  
+  // Tentar busca parcial
+  for (const [key, value] of Object.entries(mapeamento)) {
+    if (nomeNormalizado.includes(key) || key.includes(nomeNormalizado)) {
+      return value;
+    }
+  }
+  
+  // Buscar no array de colaboradores
+  const colaborador = colaboradores.find(c => 
+    c.name.toUpperCase().includes(nomeNormalizado) || 
+    nomeNormalizado.includes(c.name.toUpperCase())
+  );
+  
+  return colaborador?.id || null;
 }
 
 export function getAvaliacoesRHByColaborador(colaboradorId: string): AvaliacaoRH[] {
