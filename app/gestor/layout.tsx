@@ -44,7 +44,7 @@ export default function GestorLayout({
 
   const menuItems = [
     { label: 'Dashboard', href: '/gestor/dashboard', icon: <LayoutDashboard size={20} /> },
-    { label: 'Registros Diários', href: '/gestao/registros-diarios', icon: <Table size={20} /> },
+    { label: 'Registros Diários', href: '/gestor/registros-diarios', icon: <Table size={20} /> },
     { label: 'Meus Colaboradores', href: '/gestor/colaboradores', icon: <Users size={20} /> },
     { label: 'Registrar 1:1', href: '/gestor/registrar', icon: <FileText size={20} /> },
     { label: 'Histórico', href: '/gestor/historico', icon: <History size={20} /> },

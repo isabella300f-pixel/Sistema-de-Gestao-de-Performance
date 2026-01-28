@@ -7,7 +7,7 @@ import { Colaborador, Avaliacao11, RegistroDiario } from '@/types';
 import { getColaboradoresByGestor, getAvaliacoes11ByGestor, getUserById, getAllRegistrosDiarios, initializeRegistrosDiarios } from '@/lib/data';
 import { formatDate, getDaysSince } from '@/lib/utils';
 import { AlertCircle, CheckCircle, Clock, Users, Phone, PhoneCall, FileText, Globe, TrendingUp } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, ComposedChart } from 'recharts';
 
 export default function GestorDashboard() {
   const router = useRouter();
@@ -85,7 +85,7 @@ export default function GestorDashboard() {
       {/* KPIs dos Registros Diários */}
       <div className="card-white p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Métricas de Performance da Equipe</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <div className="card-white p-4 border border-blue-500/50">
             <div className="flex items-center justify-between mb-2">
               <Phone className="h-5 w-5 text-blue-400" />
@@ -138,36 +138,130 @@ export default function GestorDashboard() {
         </div>
       </div>
 
-      {/* Gráfico de Performance por Colaborador */}
+      {/* Gráficos de Performance Complexos */}
       {registrosDiarios.length > 0 && (
-        <div className="card-white p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Ligações por Colaborador</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={colaboradores.map(col => {
-              const regsColab = registrosDiarios.filter(r => r.colaboradorId === col.id);
-              const total = regsColab.reduce((sum, r) => sum + r.numeroLigacoes, 0);
-              return {
-                nome: col.name.split(' ').slice(0, 2).join(' '),
-                total,
-              };
-            }).filter(d => d.total > 0)}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#3B82F6" opacity={0.3} />
-              <XAxis 
-                dataKey="nome" 
-                angle={-45}
-                textAnchor="end"
-                height={100}
-                tick={{ fill: '#fff', fontSize: 12 }}
-              />
-              <YAxis tick={{ fill: '#fff' }} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #3B82F6', color: '#fff' }}
-                labelStyle={{ color: '#fff' }}
-              />
-              <Bar dataKey="total" fill="#3B82F6" />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Gráfico de linha temporal por colaborador */}
+            <div className="card-white p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">Evolução de Ligações por Colaborador</h2>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={(() => {
+                  const datas = Array.from(new Set(registrosDiarios.map(r => r.data))).sort();
+                  return datas.map(data => {
+                    const item: any = { data };
+                    colaboradores.forEach(col => {
+                      const regs = registrosDiarios.filter(r => r.colaboradorId === col.id && r.data === data);
+                      const total = regs.reduce((sum, r) => sum + r.numeroLigacoes, 0);
+                      item[col.name.split(' ').slice(0, 2).join(' ')] = total;
+                    });
+                    return item;
+                  });
+                })()}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#3B82F6" opacity={0.3} />
+                  <XAxis 
+                    dataKey="data" 
+                    tick={{ fill: '#fff', fontSize: 11 }}
+                    tickFormatter={(value) => {
+                      const date = new Date(value);
+                      return `${date.getDate()}/${date.getMonth() + 1}`;
+                    }}
+                  />
+                  <YAxis tick={{ fill: '#fff' }} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #3B82F6', color: '#fff' }}
+                    labelStyle={{ color: '#fff' }}
+                  />
+                  <Legend wrapperStyle={{ color: '#fff', fontSize: '12px' }} />
+                  {colaboradores.slice(0, 4).map((col, index) => {
+                    const cores = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
+                    return (
+                      <Line 
+                        key={col.id}
+                        type="monotone" 
+                        dataKey={col.name.split(' ').slice(0, 2).join(' ')} 
+                        stroke={cores[index % cores.length]} 
+                        strokeWidth={2}
+                      />
+                    );
+                  })}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Gráfico de barras empilhadas por dia da semana */}
+            <div className="card-white p-6">
+              <h2 className="text-lg font-semibold text-white mb-4">Ligações por Dia da Semana</h2>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={(() => {
+                  const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+                  return diasSemana.map(dia => {
+                    const item: any = { dia };
+                    colaboradores.forEach(col => {
+                      const regs = registrosDiarios.filter(r => r.colaboradorId === col.id && r.diaSemana === dia);
+                      const total = regs.reduce((sum, r) => sum + r.numeroLigacoes, 0);
+                      item[col.name.split(' ').slice(0, 2).join(' ')] = total;
+                    });
+                    return item;
+                  }).filter(d => Object.values(d).some((v: any) => typeof v === 'number' && v > 0));
+                })()}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#3B82F6" opacity={0.3} />
+                  <XAxis 
+                    dataKey="dia" 
+                    tick={{ fill: '#fff', fontSize: 12 }}
+                  />
+                  <YAxis tick={{ fill: '#fff' }} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #3B82F6', color: '#fff' }}
+                    labelStyle={{ color: '#fff' }}
+                  />
+                  <Legend wrapperStyle={{ color: '#fff', fontSize: '12px' }} />
+                  {colaboradores.slice(0, 4).map((col, index) => {
+                    const cores = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
+                    return (
+                      <Bar 
+                        key={col.id}
+                        dataKey={col.name.split(' ').slice(0, 2).join(' ')} 
+                        stackId="a"
+                        fill={cores[index % cores.length]} 
+                      />
+                    );
+                  })}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Gráfico de barras simples */}
+          <div className="card-white p-6">
+            <h2 className="text-lg font-semibold text-white mb-4">Total de Ligações por Colaborador</h2>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={colaboradores.map(col => {
+                const regsColab = registrosDiarios.filter(r => r.colaboradorId === col.id);
+                const total = regsColab.reduce((sum, r) => sum + r.numeroLigacoes, 0);
+                return {
+                  nome: col.name.split(' ').slice(0, 2).join(' '),
+                  total,
+                };
+              }).filter(d => d.total > 0).sort((a, b) => b.total - a.total)}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#3B82F6" opacity={0.3} />
+                <XAxis 
+                  dataKey="nome" 
+                  angle={-45}
+                  textAnchor="end"
+                  height={100}
+                  tick={{ fill: '#fff', fontSize: 12 }}
+                />
+                <YAxis tick={{ fill: '#fff' }} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #3B82F6', color: '#fff' }}
+                  labelStyle={{ color: '#fff' }}
+                />
+                <Bar dataKey="total" fill="#3B82F6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </>
       )}
 
       {/* Cards de resumo */}

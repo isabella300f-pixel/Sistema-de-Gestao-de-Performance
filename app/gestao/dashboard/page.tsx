@@ -7,7 +7,7 @@ import { Colaborador, Avaliacao11, IndicadoresColaborador, RegistroDiario } from
 import { getAllColaboradores, getAllAvaliacoes11, getAllRegistrosDiarios, initializeRegistrosDiarios } from '@/lib/data';
 import { calculateScore } from '@/lib/utils';
 import { TrendingUp, TrendingDown, AlertTriangle, Users, Award, XCircle, Phone, PhoneCall, FileText, Globe } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend, ComposedChart, Area, AreaChart } from 'recharts';
 
 export default function GestaoDashboardPage() {
   const router = useRouter();
@@ -164,6 +164,62 @@ export default function GestaoDashboardPage() {
     .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime())
     .slice(-14); // Últimas 2 semanas
 
+  // Preparar dados para gráfico de linha por vendedor (múltiplas séries)
+  const topVendedores = colaboradores.map(col => {
+    const regsColab = registrosDiarios.filter(r => r.colaboradorId === col.id);
+    const total = regsColab.reduce((sum, r) => sum + r.numeroLigacoes, 0);
+    return { col, total, regs: regsColab };
+  }).sort((a, b) => b.total - a.total).slice(0, 4);
+
+  // Preparar dados para gráfico de barras empilhadas por dia da semana
+  const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+  const chartDataPorDiaSemana = diasSemana.map(dia => {
+    const item: any = { dia };
+    topVendedores.forEach(({ col }) => {
+      const regs = registrosDiarios.filter(r => r.colaboradorId === col.id && r.diaSemana === dia);
+      const total = regs.reduce((sum, r) => sum + r.numeroLigacoes, 0);
+      item[col.name.split(' ').slice(0, 2).join(' ')] = total;
+    });
+    return item;
+  }).filter(d => Object.values(d).some((v: any) => typeof v === 'number' && v > 0));
+
+  // Preparar dados para gráfico de rosca (distribuição de ligações por vendedor)
+  const distribLigacoesPorVendedor = colaboradores.map(col => {
+    const regsColab = registrosDiarios.filter(r => r.colaboradorId === col.id);
+    const total = regsColab.reduce((sum, r) => sum + r.numeroLigacoes, 0);
+    return {
+      name: col.name.split(' ').slice(0, 2).join(' '),
+      value: total
+    };
+  }).filter(d => d.value > 0).sort((a, b) => b.value - a.value).slice(0, 8);
+
+  // Preparar dados para tabela de calor semanal
+  const registrosPorSemana = registrosDiarios.reduce((acc, reg) => {
+    const data = new Date(reg.data);
+    const semana = `Semana ${Math.ceil(data.getDate() / 7)}`;
+    const colab = colaboradores.find(c => c.id === reg.colaboradorId);
+    const nome = colab?.name || 'Outro';
+    
+    if (!acc[semana]) {
+      acc[semana] = {};
+    }
+    if (!acc[semana][nome]) {
+      acc[semana][nome] = 0;
+    }
+    acc[semana][nome] += reg.numeroLigacoes;
+    return acc;
+  }, {} as Record<string, Record<string, number>>);
+
+  const tabelaCalor = Object.entries(registrosPorSemana).map(([semana, vendedores]) => {
+    const total = Object.values(vendedores).reduce((sum, val) => sum + val, 0);
+    return {
+      semana,
+      vendedor: Object.keys(vendedores)[0] || 'N/A',
+      valor: total,
+      detalhes: vendedores
+    };
+  }).sort((a, b) => a.semana.localeCompare(b.semana));
+
   if (loading) {
     return <div className="text-center py-12">Carregando...</div>;
   }
@@ -233,18 +289,63 @@ export default function GestaoDashboardPage() {
         </div>
       </div>
 
-      {/* Gráficos de Performance */}
+      {/* Gráficos de Performance - Complexos */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Gráfico de linha temporal com múltiplas séries por vendedor */}
         <div className="card-white p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Total de Ligações por Vendedor</h2>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={registrosPorVendedor}>
+          <h2 className="text-lg font-semibold text-white mb-4">Valor da Métrica Total por Vendedor</h2>
+          <ResponsiveContainer width="100%" height={350}>
+            <LineChart data={(() => {
+              const datas = Array.from(new Set(registrosDiarios.map(r => r.data))).sort();
+              return datas.map(data => {
+                const item: any = { data };
+                topVendedores.forEach(({ col }) => {
+                  const regs = registrosDiarios.filter(r => r.colaboradorId === col.id && r.data === data);
+                  const total = regs.reduce((sum, r) => sum + r.numeroLigacoes, 0);
+                  item[col.name.split(' ').slice(0, 2).join(' ')] = total;
+                });
+                return item;
+              });
+            })()}>
               <CartesianGrid strokeDasharray="3 3" stroke="#3B82F6" opacity={0.3} />
               <XAxis 
-                dataKey="vendedor" 
-                angle={-45}
-                textAnchor="end"
-                height={100}
+                dataKey="data" 
+                tick={{ fill: '#fff', fontSize: 11 }}
+                tickFormatter={(value) => {
+                  const date = new Date(value);
+                  return `${date.getDate()}/${date.getMonth() + 1}`;
+                }}
+              />
+              <YAxis tick={{ fill: '#fff' }} domain={[0, 250]} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #3B82F6', color: '#fff' }}
+                labelStyle={{ color: '#fff' }}
+              />
+              <Legend wrapperStyle={{ color: '#fff', fontSize: '12px' }} />
+              {topVendedores.map(({ col }, index) => {
+                const cores = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
+                return (
+                  <Line 
+                    key={col.id}
+                    type="monotone" 
+                    dataKey={col.name.split(' ').slice(0, 2).join(' ')} 
+                    stroke={cores[index % cores.length]} 
+                    strokeWidth={2}
+                  />
+                );
+              })}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Gráfico de barras empilhadas por dia da semana */}
+        <div className="card-white p-6">
+          <h2 className="text-lg font-semibold text-white mb-4">Valor da Métrica por Dia por Vendedor</h2>
+          <ResponsiveContainer width="100%" height={350}>
+            <BarChart data={chartDataPorDiaSemana}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#3B82F6" opacity={0.3} />
+              <XAxis 
+                dataKey="dia" 
                 tick={{ fill: '#fff', fontSize: 12 }}
               />
               <YAxis tick={{ fill: '#fff' }} />
@@ -252,15 +353,64 @@ export default function GestaoDashboardPage() {
                 contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #3B82F6', color: '#fff' }}
                 labelStyle={{ color: '#fff' }}
               />
-              <Bar dataKey="total" fill="#3B82F6" />
+              <Legend wrapperStyle={{ color: '#fff' }} />
+              {topVendedores.map(({ col }, index) => {
+                const cores = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+                return (
+                  <Bar 
+                    key={col.id}
+                    dataKey={col.name.split(' ').slice(0, 2).join(' ')} 
+                    stackId="a"
+                    fill={cores[index % cores.length]} 
+                  />
+                );
+              })}
             </BarChart>
           </ResponsiveContainer>
         </div>
+      </div>
 
+      {/* Gráficos Adicionais */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Gráfico de rosca - Distribuição de ligações por vendedor */}
+        <div className="card-white p-6">
+          <h2 className="text-lg font-semibold text-white mb-4">Call Realizadas por Vendedor</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={distribLigacoesPorVendedor}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={100}
+                paddingAngle={5}
+                dataKey="value"
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+              >
+                {distribLigacoesPorVendedor.map((entry, index) => {
+                  const cores = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
+                  return <Cell key={`cell-${index}`} fill={cores[index % cores.length]} />;
+                })}
+              </Pie>
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #3B82F6', color: '#fff' }}
+                labelStyle={{ color: '#fff' }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Gráfico de área - Evolução temporal */}
         <div className="card-white p-6">
           <h2 className="text-lg font-semibold text-white mb-4">Evolução de Ligações ao Longo do Tempo</h2>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartDataTemporal}>
+            <AreaChart data={chartDataTemporal}>
+              <defs>
+                <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#3B82F6" opacity={0.3} />
               <XAxis 
                 dataKey="data" 
@@ -275,9 +425,46 @@ export default function GestaoDashboardPage() {
                 contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #3B82F6', color: '#fff' }}
                 labelStyle={{ color: '#fff' }}
               />
-              <Line type="monotone" dataKey="total" stroke="#3B82F6" strokeWidth={2} />
-            </LineChart>
+              <Area type="monotone" dataKey="total" stroke="#3B82F6" fillOpacity={1} fill="url(#colorTotal)" />
+            </AreaChart>
           </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Tabela de Calor Semanal */}
+      <div className="card-white">
+        <div className="card-white-header">
+          <h2 className="text-lg font-semibold text-white">Tabela de Calor da Métrica por Semana</h2>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b border-blue-500/30">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Vendedor</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Data (Semana)</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Valor da Métrica</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-blue-500/30">
+              {tabelaCalor.slice(0, 20).map((item, index) => {
+                const maxValor = Math.max(...tabelaCalor.map(t => t.valor));
+                const intensidade = item.valor / maxValor;
+                const bgColor = `rgba(59, 130, 246, ${0.3 + intensidade * 0.7})`;
+                return (
+                  <tr key={index} className="hover:bg-gray-800/50">
+                    <td className="px-6 py-4 whitespace-nowrap text-white">{item.vendedor}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-white">{item.semana}</td>
+                    <td 
+                      className="px-6 py-4 whitespace-nowrap text-right text-white font-semibold"
+                      style={{ backgroundColor: bgColor }}
+                    >
+                      {item.valor}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 

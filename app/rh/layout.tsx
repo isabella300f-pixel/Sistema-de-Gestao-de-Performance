@@ -44,7 +44,7 @@ export default function RHLayout({
 
   const menuItems = [
     { label: 'Painel Geral', href: '/rh/painel', icon: <LayoutDashboard size={20} /> },
-    { label: 'Registros Diários', href: '/gestao/registros-diarios', icon: <Table size={20} /> },
+    { label: 'Registros Diários', href: '/rh/registros-diarios', icon: <Table size={20} /> },
     { label: 'Usuários', href: '/rh/usuarios', icon: <Settings size={20} /> },
     { label: 'Chat', href: '/rh/chat', icon: <MessageSquare size={20} /> },
     { label: 'Gestão de Pessoas', href: '/rh/gestao-pessoas', icon: <Users size={20} /> },
