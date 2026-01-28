@@ -3,15 +3,17 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Colaborador, Avaliacao11, IndicadoresColaborador } from '@/types';
-import { getAllColaboradores, getAllAvaliacoes11, getAvaliacoes11ByColaborador } from '@/lib/data';
+import { Colaborador, Avaliacao11, IndicadoresColaborador, RegistroDiario } from '@/types';
+import { getAllColaboradores, getAllAvaliacoes11, getAvaliacoes11ByColaborador, getAllRegistrosDiarios, initializeRegistrosDiarios } from '@/lib/data';
 import { formatDate, calculateScore } from '@/lib/utils';
-import { Users, TrendingUp, TrendingDown, AlertTriangle, Search } from 'lucide-react';
+import { Users, TrendingUp, TrendingDown, AlertTriangle, Search, Phone, PhoneCall, FileText, Globe } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 export default function RHPainelPage() {
   const router = useRouter();
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao11[]>([]);
+  const [registrosDiarios, setRegistrosDiarios] = useState<RegistroDiario[]>([]);
   const [filtroArea, setFiltroArea] = useState<string>('');
   const [filtroGestor, setFiltroGestor] = useState<string>('');
   const [busca, setBusca] = useState<string>('');
@@ -31,11 +33,14 @@ export default function RHPainelPage() {
         return;
       }
 
+      initializeRegistrosDiarios();
       const cols = getAllColaboradores().filter(c => c.status === 'ativo');
       const avals = getAllAvaliacoes11();
+      const registros = getAllRegistrosDiarios();
 
       setColaboradores(cols);
       setAvaliacoes(avals);
+      setRegistrosDiarios(registros);
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
     } finally {
@@ -117,6 +122,114 @@ export default function RHPainelPage() {
         <h1 className="text-3xl font-bold text-white">Painel Geral - RH</h1>
         <p className="mt-2 text-gray-300">Acompanhamento de todos os colaboradores</p>
       </div>
+
+      {/* KPIs dos Registros Diários */}
+      <div className="card-white p-6">
+        <h2 className="text-lg font-semibold text-white mb-4">Métricas Gerais de Performance</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="card-white p-4 border border-blue-500/50">
+            <div className="flex items-center justify-between mb-2">
+              <Phone className="h-5 w-5 text-blue-400" />
+              <span className="text-2xl font-bold text-white">
+                {registrosDiarios.reduce((sum, r) => sum + r.numeroLigacoes, 0).toLocaleString('pt-BR')}
+              </span>
+            </div>
+            <p className="text-sm text-gray-300">Ligações</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Conv Atendidas: {registrosDiarios.reduce((sum, r) => sum + r.ligacoesAtendidas, 0) > 0 
+                ? ((registrosDiarios.reduce((sum, r) => sum + r.ligacoesAtendidas, 0) / registrosDiarios.reduce((sum, r) => sum + r.numeroLigacoes, 0)) * 100).toFixed(2)
+                : '0.00'}%
+            </p>
+          </div>
+          
+          <div className="card-white p-4 border border-blue-500/50">
+            <div className="flex items-center justify-between mb-2">
+              <PhoneCall className="h-5 w-5 text-green-400" />
+              <span className="text-2xl font-bold text-white">
+                {registrosDiarios.reduce((sum, r) => sum + r.ligacoesAtendidas, 0).toLocaleString('pt-BR')}
+              </span>
+            </div>
+            <p className="text-sm text-gray-300">Atendidas</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Conv Aberturas: {registrosDiarios.reduce((sum, r) => sum + r.ligacoesAtendidas, 0) > 0
+                ? ((registrosDiarios.reduce((sum, r) => sum + r.numeroAberturas, 0) / registrosDiarios.reduce((sum, r) => sum + r.ligacoesAtendidas, 0)) * 100).toFixed(2)
+                : '0.00'}%
+            </p>
+          </div>
+          
+          <div className="card-white p-4 border border-blue-500/50">
+            <div className="flex items-center justify-between mb-2">
+              <TrendingUp className="h-5 w-5 text-yellow-400" />
+              <span className="text-2xl font-bold text-white">
+                {registrosDiarios.reduce((sum, r) => sum + r.numeroAberturas, 0).toLocaleString('pt-BR')}
+              </span>
+            </div>
+            <p className="text-sm text-gray-300">Aberturas</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Conv Formulários: {registrosDiarios.reduce((sum, r) => sum + r.numeroAberturas, 0) > 0
+                ? ((registrosDiarios.reduce((sum, r) => sum + r.numeroFormularios, 0) / registrosDiarios.reduce((sum, r) => sum + r.numeroAberturas, 0)) * 100).toFixed(2)
+                : '0.00'}%
+            </p>
+          </div>
+          
+          <div className="card-white p-4 border border-blue-500/50">
+            <div className="flex items-center justify-between mb-2">
+              <FileText className="h-5 w-5 text-purple-400" />
+              <span className="text-2xl font-bold text-white">
+                {registrosDiarios.reduce((sum, r) => sum + r.numeroFormularios, 0).toLocaleString('pt-BR')}
+              </span>
+            </div>
+            <p className="text-sm text-gray-300">Formulários</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Conv Onlines: {registrosDiarios.reduce((sum, r) => sum + r.numeroFormularios, 0) > 0
+                ? ((registrosDiarios.reduce((sum, r) => sum + r.numeroOnlines, 0) / registrosDiarios.reduce((sum, r) => sum + r.numeroFormularios, 0)) * 100).toFixed(2)
+                : '0.00'}%
+            </p>
+          </div>
+          
+          <div className="card-white p-4 border border-blue-500/50">
+            <div className="flex items-center justify-between mb-2">
+              <Globe className="h-5 w-5 text-cyan-400" />
+              <span className="text-2xl font-bold text-white">
+                {registrosDiarios.reduce((sum, r) => sum + r.numeroOnlines, 0).toLocaleString('pt-BR')}
+              </span>
+            </div>
+            <p className="text-sm text-gray-300">Onlines</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Gráfico de Performance */}
+      {registrosDiarios.length > 0 && (
+        <div className="card-white p-6">
+          <h2 className="text-lg font-semibold text-white mb-4">Ligações por Colaborador</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={colaboradores.map(col => {
+              const regsColab = registrosDiarios.filter(r => r.colaboradorId === col.id);
+              const total = regsColab.reduce((sum, r) => sum + r.numeroLigacoes, 0);
+              return {
+                nome: col.name.split(' ').slice(0, 2).join(' '),
+                total,
+              };
+            }).filter(d => d.total > 0).sort((a, b) => b.total - a.total).slice(0, 10)}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#3B82F6" opacity={0.3} />
+              <XAxis 
+                dataKey="nome" 
+                angle={-45}
+                textAnchor="end"
+                height={100}
+                tick={{ fill: '#fff', fontSize: 12 }}
+              />
+              <YAxis tick={{ fill: '#fff' }} />
+              <Tooltip 
+                contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #3B82F6', color: '#fff' }}
+                labelStyle={{ color: '#fff' }}
+              />
+              <Bar dataKey="total" fill="#3B82F6" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {/* Filtros */}
       <div className="card-white p-6">
