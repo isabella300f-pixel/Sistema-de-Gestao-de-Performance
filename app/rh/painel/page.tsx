@@ -7,7 +7,7 @@ import { Colaborador, Avaliacao11, IndicadoresColaborador, RegistroDiario } from
 import { getAllColaboradores, getAllAvaliacoes11, getAvaliacoes11ByColaborador, getAllRegistrosDiarios, initializeRegistrosDiarios } from '@/lib/data';
 import { formatDate, calculateScore } from '@/lib/utils';
 import { Users, TrendingUp, TrendingDown, AlertTriangle, Search, Phone, PhoneCall, FileText, Globe } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, AreaChart, Area, Legend } from 'recharts';
 
 export default function RHPainelPage() {
   const router = useRouter();
