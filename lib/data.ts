@@ -451,11 +451,13 @@ export function initializeRegistrosDiarios() {
     { data: '2025-08-02', diaSemana: 'Sábado', vendedor: 'GUILHERME MACHADO', ligacoes: 103, atendidas: 11, aberturas: 4, desqualificados: 4, formularios: 2, onlines: 2 },
   ];
 
-  dadosPlanilha.forEach((item, index) => {
+  let registroIndex = 1;
+  dadosPlanilha.forEach((item) => {
     const colaboradorId = getColaboradorIdByName(item.vendedor);
+    // Ignorar registros sem colaborador correspondente
     if (colaboradorId) {
       registrosDiarios.push({
-        id: `registro-${index + 1}`,
+        id: `registro-${registroIndex++}`,
         colaboradorId,
         data: item.data,
         diaSemana: item.diaSemana,
@@ -572,7 +574,7 @@ function getColaboradorIdByName(nome: string): string | null {
     'FELIPE CARLO DO CARMO': 'colab-11',
     'FELIPE BAEZI': 'colab-5',
     'FELIPE JOSE BAEZI LAGES': 'colab-5',
-    'DANILO MIRAN': 'colab-2', // Assumindo que é RENATO ou similar
+    // 'DANILO MIRAN' e 'DANILO MIRANDA' não são colaboradores - serão ignorados
     'DAIANE MOREI': 'colab-9',
     'DAIANE DA SILVA MOREIRA': 'colab-9',
     'LUIZ RIBEIRO': 'colab-13',
