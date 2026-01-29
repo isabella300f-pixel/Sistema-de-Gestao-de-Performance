@@ -205,6 +205,9 @@ export default function GestaoDashboardPage() {
   })();
 
   const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+  const colaboradoresOrdenados = [...colaboradores].sort((a, b) =>
+    a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
+  );
 
   // Calcular KPIs dos registros diários (respeitando filtros)
   const totalLigacoes = registrosFiltrados.reduce((sum, r) => sum + r.numeroLigacoes, 0);
@@ -361,7 +364,7 @@ export default function GestaoDashboardPage() {
               className="w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Todos</option>
-              {colaboradores.map((c) => (
+              {colaboradoresOrdenados.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
@@ -496,7 +499,7 @@ export default function GestaoDashboardPage() {
                 const item: any = { data };
                 topVendedores.forEach(({ col }) => {
                   const regs = registrosFiltrados.filter(r => r.colaboradorId === col.id && r.data === data);
-                  const total = regs.reduce((sum, r) => sum + r.numeroLigacoes, 0);
+                  const total = regs.reduce((sum, r) => sum + getValorMetrica(r), 0);
                   item[col.name.split(' ').slice(0, 2).join(' ')] = total;
                 });
                 return item;
@@ -515,6 +518,22 @@ export default function GestaoDashboardPage() {
               <Tooltip 
                 contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #3B82F6', color: '#fff' }}
                 labelStyle={{ color: '#fff' }}
+                content={({ active, payload, label }) => {
+                  if (!active || !payload || !payload.length) return null;
+                  const sorted = [...payload].sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0));
+                  return (
+                    <div className="px-3 py-2 rounded border border-blue-500/50 bg-gray-900">
+                      <p className="font-medium text-white mb-2">{label}</p>
+                      <ul className="space-y-1">
+                        {sorted.map((entry, i) => (
+                          <li key={i} className="text-sm" style={{ color: entry.color }}>
+                            {entry.name}: {Number(entry.value).toLocaleString('pt-BR')}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                }}
               />
               <Legend wrapperStyle={{ color: '#fff', fontSize: '12px' }} />
               {topVendedores.map(({ col }, index) => {
@@ -547,6 +566,22 @@ export default function GestaoDashboardPage() {
               <Tooltip 
                 contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #3B82F6', color: '#fff' }}
                 labelStyle={{ color: '#fff' }}
+                content={({ active, payload, label }) => {
+                  if (!active || !payload || !payload.length) return null;
+                  const sorted = [...payload].sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0));
+                  return (
+                    <div className="px-3 py-2 rounded border border-blue-500/50 bg-gray-900">
+                      <p className="font-medium text-white mb-2">{label}</p>
+                      <ul className="space-y-1">
+                        {sorted.map((entry, i) => (
+                          <li key={i} className="text-sm" style={{ color: entry.color }}>
+                            {entry.name}: {Number(entry.value).toLocaleString('pt-BR')}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                }}
               />
               <Legend wrapperStyle={{ color: '#fff' }} />
               {topVendedores.map(({ col }, index) => {
@@ -630,7 +665,7 @@ export default function GestaoDashboardPage() {
       <div className="card-white p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Comparativo de semanas por vendedor</h2>
         <p className="text-sm text-gray-400 mb-4">Compare a métrica ({labelMetricaSelecionada}) do vendedor entre semanas. Cada semana é de segunda a domingo.</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div>
             <label className="block text-xs text-gray-400 mb-1">Vendedor</label>
             <select
@@ -639,35 +674,27 @@ export default function GestaoDashboardPage() {
               className="w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Selecione o vendedor</option>
-              {colaboradores.map((c) => (
+              {colaboradoresOrdenados.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
           </div>
-          <div className="md:col-span-2 lg:col-span-3">
-            <label className="block text-xs text-gray-400 mb-1">Semanas a comparar (Data = segunda a domingo)</label>
-            <div className="flex flex-wrap gap-2">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Semanas a comparar (segunda a domingo)</label>
+            <select
+              multiple
+              value={chartComparativoSemanas}
+              onChange={(e) => {
+                const selected = Array.from(e.target.selectedOptions, opt => opt.value);
+                setChartComparativoSemanas(selected);
+              }}
+              className="w-full min-h-[120px] px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
               {semanasComLabels.map((s) => (
-                <label key={s.key} className="inline-flex items-center gap-2 px-3 py-2 bg-gray-800 border border-blue-500/50 rounded-md cursor-pointer hover:bg-gray-700">
-                  <input
-                    type="checkbox"
-                    checked={chartComparativoSemanas.includes(s.key)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setChartComparativoSemanas(prev => [...prev, s.key].sort());
-                      } else {
-                        setChartComparativoSemanas(prev => prev.filter(k => k !== s.key));
-                      }
-                    }}
-                    className="rounded border-gray-500 text-blue-500 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-white">{s.label}</span>
-                </label>
+                <option key={s.key} value={s.key}>{s.label}</option>
               ))}
-              {semanasComLabels.length === 0 && (
-                <span className="text-sm text-gray-500">Nenhuma semana nos dados filtrados</span>
-              )}
-            </div>
+            </select>
+            <p className="text-xs text-gray-500 mt-1">Segure Ctrl (ou Cmd) para selecionar várias semanas</p>
           </div>
         </div>
         {chartComparativoVendedor && chartComparativoSemanas.length > 0 && chartDataComparativo.length > 0 && (
@@ -679,6 +706,22 @@ export default function GestaoDashboardPage() {
               <Tooltip
                 contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #3B82F6', color: '#fff' }}
                 labelStyle={{ color: '#fff' }}
+                content={({ active, payload, label }) => {
+                  if (!active || !payload || !payload.length) return null;
+                  const sorted = [...payload].sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0));
+                  return (
+                    <div className="px-3 py-2 rounded border border-blue-500/50 bg-gray-900">
+                      <p className="font-medium text-white mb-2">{label}</p>
+                      <ul className="space-y-1">
+                        {sorted.map((entry, i) => (
+                          <li key={i} className="text-sm" style={{ color: entry.color }}>
+                            {entry.name}: {Number(entry.value).toLocaleString('pt-BR')}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                }}
               />
               <Legend wrapperStyle={{ color: '#fff', fontSize: '12px' }} />
               {chartComparativoSemanas.map((weekKey, index) => {
