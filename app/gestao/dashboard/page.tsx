@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Colaborador, Avaliacao11, IndicadoresColaborador, RegistroDiario } from '@/types';
@@ -48,6 +48,17 @@ export default function GestaoDashboardPage() {
   // Gráfico comparativo de semanas: vendedor + semanas a comparar (segunda a domingo)
   const [chartComparativoVendedor, setChartComparativoVendedor] = useState<string>('');
   const [chartComparativoSemanas, setChartComparativoSemanas] = useState<string[]>([]);
+  const [semanasDropdownAberto, setSemanasDropdownAberto] = useState(false);
+  const semanasDropdownRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (semanasDropdownRef.current && !semanasDropdownRef.current.contains(e.target as Node)) {
+        setSemanasDropdownAberto(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const currentUserStr = localStorage.getItem('currentUser');
@@ -665,7 +676,7 @@ export default function GestaoDashboardPage() {
       <div className="card-white p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Comparativo de semanas por vendedor</h2>
         <p className="text-sm text-gray-400 mb-4">Compare a métrica ({labelMetricaSelecionada}) do vendedor entre semanas. Cada semana é de segunda a domingo.</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           <div>
             <label className="block text-xs text-gray-400 mb-1">Vendedor</label>
             <select
@@ -679,22 +690,51 @@ export default function GestaoDashboardPage() {
               ))}
             </select>
           </div>
-          <div>
+          <div className="relative" ref={semanasDropdownRef}>
             <label className="block text-xs text-gray-400 mb-1">Semanas a comparar (segunda a domingo)</label>
-            <select
-              multiple
-              value={chartComparativoSemanas}
-              onChange={(e) => {
-                const selected = Array.from(e.target.selectedOptions, opt => opt.value);
-                setChartComparativoSemanas(selected);
-              }}
-              className="w-full min-h-[120px] px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <button
+              type="button"
+              onClick={() => setSemanasDropdownAberto(!semanasDropdownAberto)}
+              className="w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white text-left focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-between"
             >
-              {semanasComLabels.map((s) => (
-                <option key={s.key} value={s.key}>{s.label}</option>
-              ))}
-            </select>
-            <p className="text-xs text-gray-500 mt-1">Segure Ctrl (ou Cmd) para selecionar várias semanas</p>
+              <span className="truncate">
+                {chartComparativoSemanas.length === 0
+                  ? 'Selecione uma ou mais semanas'
+                  : chartComparativoSemanas.length === 1
+                    ? semanasComLabels.find(s => s.key === chartComparativoSemanas[0])?.label ?? '1 semana'
+                    : `${chartComparativoSemanas.length} semanas selecionadas`}
+              </span>
+              <svg className={`w-4 h-4 flex-shrink-0 ml-2 transition-transform ${semanasDropdownAberto ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {semanasDropdownAberto && (
+              <div className="absolute z-10 mt-1 w-full rounded-md border border-blue-500/50 bg-gray-800 shadow-lg max-h-56 overflow-auto">
+                {semanasComLabels.map((s) => (
+                  <label
+                    key={s.key}
+                    className="flex items-center gap-2 px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={chartComparativoSemanas.includes(s.key)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setChartComparativoSemanas(prev => [...prev, s.key].sort());
+                        } else {
+                          setChartComparativoSemanas(prev => prev.filter(k => k !== s.key));
+                        }
+                      }}
+                      className="rounded border-gray-500 text-blue-500 focus:ring-blue-500"
+                    />
+                    {s.label}
+                  </label>
+                ))}
+                {semanasComLabels.length === 0 && (
+                  <div className="px-4 py-3 text-sm text-gray-500">Nenhuma semana nos dados filtrados</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
         {chartComparativoVendedor && chartComparativoSemanas.length > 0 && chartDataComparativo.length > 0 && (
