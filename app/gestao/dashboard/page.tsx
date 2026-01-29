@@ -543,12 +543,12 @@ export default function GestaoDashboardPage() {
                     const selecionado = filterDataInicio === dayStr;
                     const mesAtual = isSameMonth(day, parseAnoMesLocal(dataInicioViewMonth));
                     const hoje = isToday(day);
-                    const foraDoRange = (datasPlanilha.min && dayStr < datasPlanilha.min) || (datasPlanilha.max && dayStr > datasPlanilha.max);
+                    const foraDoRange = !!((datasPlanilha.min && dayStr < datasPlanilha.min) || (datasPlanilha.max && dayStr > datasPlanilha.max));
                     return (
                       <button
                         key={dayStr}
                         type="button"
-                        disabled={foraDoRange}
+                        disabled={Boolean(foraDoRange)}
                         onClick={() => { if (!foraDoRange) { setFilterDataInicio(dayStr); setDataInicioPickerAberto(false); } }}
                         className={`w-8 h-8 rounded text-sm ${!mesAtual ? 'text-gray-500' : 'text-white'} ${foraDoRange ? 'opacity-40 cursor-not-allowed' : ''} ${selecionado ? 'bg-blue-500 text-white' : !foraDoRange && hoje ? 'border border-blue-400 text-blue-200' : !foraDoRange ? 'hover:bg-gray-700' : ''}`}
                       >
@@ -619,12 +619,12 @@ export default function GestaoDashboardPage() {
                     const selecionado = filterDataFim === dayStr;
                     const mesAtual = isSameMonth(day, parseAnoMesLocal(dataFimViewMonth));
                     const hoje = isToday(day);
-                    const foraDoRange = (datasPlanilha.min && dayStr < datasPlanilha.min) || (datasPlanilha.max && dayStr > datasPlanilha.max);
+                    const foraDoRange = !!((datasPlanilha.min && dayStr < datasPlanilha.min) || (datasPlanilha.max && dayStr > datasPlanilha.max));
                     return (
                       <button
                         key={dayStr}
                         type="button"
-                        disabled={foraDoRange}
+                        disabled={Boolean(foraDoRange)}
                         onClick={() => { if (!foraDoRange) { setFilterDataFim(dayStr); setDataFimPickerAberto(false); } }}
                         className={`w-8 h-8 rounded text-sm ${!mesAtual ? 'text-gray-500' : 'text-white'} ${foraDoRange ? 'opacity-40 cursor-not-allowed' : ''} ${selecionado ? 'bg-blue-500 text-white' : !foraDoRange && hoje ? 'border border-blue-400 text-blue-200' : !foraDoRange ? 'hover:bg-gray-700' : ''}`}
                       >
