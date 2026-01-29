@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Colaborador, Avaliacao11, RegistroDiario } from '@/types';
-import { getColaboradoresByGestor, getAvaliacoes11ByGestor, getUserById, getAllRegistrosDiarios, initializeRegistrosDiarios } from '@/lib/data';
+import { getColaboradoresByGestor, getAvaliacoes11ByGestor, getUserById, getAllRegistrosDiarios, initializeRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
+import { mapSheetRowsToRegistros } from '@/lib/sheet';
 import { formatDate, getDaysSince } from '@/lib/utils';
 import { AlertCircle, CheckCircle, Clock, Users, Phone, PhoneCall, FileText, Globe, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, ComposedChart, Legend } from 'recharts';
@@ -23,29 +24,54 @@ export default function GestorDashboard() {
       return;
     }
 
-    try {
-      const currentUser = JSON.parse(currentUserStr);
-      const gestor = getUserById(currentUser.id);
-      if (!gestor || gestor.role !== 'gestor') {
-        router.push('/');
-        return;
+    const load = async () => {
+      try {
+        const currentUser = JSON.parse(currentUserStr);
+        const gestor = getUserById(currentUser.id);
+        if (!gestor || gestor.role !== 'gestor') {
+          router.push('/');
+          return;
+        }
+
+        const cols = getColaboradoresByGestor(gestor.id);
+        setColaboradores(cols);
+        setAvaliacoes(getAvaliacoes11ByGestor(gestor.id));
+
+        try {
+          const res = await fetch('/api/sheet/registros-diarios', { cache: 'no-store' });
+          const json = await res.json();
+          if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
+            const registros = mapSheetRowsToRegistros(json.data, getColaboradorIdByName);
+            setRegistrosDiariosFromSheet(registros);
+          } else {
+            initializeRegistrosDiarios();
+          }
+        } catch (_) {
+          initializeRegistrosDiarios();
+        }
+        const registros = getAllRegistrosDiarios().filter(r =>
+          cols.some(c => c.id === r.colaboradorId)
+        );
+        setRegistrosDiarios(registros);
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        initializeRegistrosDiarios();
+        try {
+          const currentUser = JSON.parse(currentUserStr);
+          const gestor = getUserById(currentUser.id);
+          if (gestor) {
+            const cols = getColaboradoresByGestor(gestor.id);
+            setColaboradores(cols);
+            setAvaliacoes(getAvaliacoes11ByGestor(gestor.id));
+            setRegistrosDiarios(getAllRegistrosDiarios().filter(r => cols.some(c => c.id === r.colaboradorId)));
+          }
+        } catch (_) {}
+      } finally {
+        setLoading(false);
       }
+    };
 
-      initializeRegistrosDiarios();
-      const cols = getColaboradoresByGestor(gestor.id);
-      const avals = getAvaliacoes11ByGestor(gestor.id);
-      const registros = getAllRegistrosDiarios().filter(r => 
-        cols.some(c => c.id === r.colaboradorId)
-      );
-
-      setColaboradores(cols);
-      setAvaliacoes(avals);
-      setRegistrosDiarios(registros);
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-    } finally {
-      setLoading(false);
-    }
+    load();
   }, [router]);
 
   const getStatus11 = (colaboradorId: string) => {

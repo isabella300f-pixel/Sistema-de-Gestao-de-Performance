@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { RegistroDiario, Colaborador } from '@/types';
-import { initializeRegistrosDiarios, getColaboradoresByGestor, getUserById, pesquisarRegistrosDiarios } from '@/lib/data';
+import { initializeRegistrosDiarios, getColaboradoresByGestor, getUserById, pesquisarRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
+import { mapSheetRowsToRegistros } from '@/lib/sheet';
 import { formatDate } from '@/lib/utils';
 import { Search, Download } from 'lucide-react';
 
@@ -29,28 +30,45 @@ export default function GestorRegistrosDiariosPage() {
       return;
     }
 
-    try {
-      const currentUser = JSON.parse(currentUserStr);
-      if (currentUser.role !== 'gestor') {
-        router.push('/');
-        return;
-      }
+    const load = async () => {
+      try {
+        const currentUser = JSON.parse(currentUserStr);
+        if (currentUser.role !== 'gestor') {
+          router.push('/');
+          return;
+        }
 
-      const gestor = getUserById(currentUser.id);
-      if (!gestor) {
-        router.push('/');
-        return;
-      }
+        const gestor = getUserById(currentUser.id);
+        if (!gestor) {
+          router.push('/');
+          return;
+        }
 
-      initializeRegistrosDiarios();
-      const cols = getColaboradoresByGestor(gestor.id);
-      setColaboradores(cols);
-      setColaboradorIdsEquipe(cols.map(c => c.id));
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-    } finally {
-      setLoading(false);
-    }
+        const cols = getColaboradoresByGestor(gestor.id);
+        setColaboradores(cols);
+        setColaboradorIdsEquipe(cols.map(c => c.id));
+
+        try {
+          const res = await fetch('/api/sheet/registros-diarios', { cache: 'no-store' });
+          const json = await res.json();
+          if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
+            const registros = mapSheetRowsToRegistros(json.data, getColaboradorIdByName);
+            setRegistrosDiariosFromSheet(registros);
+          } else {
+            initializeRegistrosDiarios();
+          }
+        } catch (_) {
+          initializeRegistrosDiarios();
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        initializeRegistrosDiarios();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
   }, [router]);
 
   const getColaboradorName = (colaboradorId: string): string => {

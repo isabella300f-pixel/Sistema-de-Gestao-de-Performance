@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Colaborador, Avaliacao11, IndicadoresColaborador, RegistroDiario } from '@/types';
-import { getAllColaboradores, getAllAvaliacoes11, getAllRegistrosDiarios, initializeRegistrosDiarios } from '@/lib/data';
+import { getAllColaboradores, getAllAvaliacoes11, getAllRegistrosDiarios, initializeRegistrosDiarios, getColaboradorIdByName } from '@/lib/data';
+import { mapSheetRowsToRegistros } from '@/lib/sheet';
 import { calculateScore } from '@/lib/utils';
 import { TrendingUp, TrendingDown, AlertTriangle, Users, Award, XCircle, Phone, PhoneCall, FileText, Globe } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend, ComposedChart, Area, AreaChart } from 'recharts';
@@ -23,26 +24,43 @@ export default function GestaoDashboardPage() {
       return;
     }
 
-    try {
-      const currentUser = JSON.parse(currentUserStr);
-      if (currentUser.role !== 'gestao') {
-        router.push('/');
-        return;
+    const load = async () => {
+      try {
+        const currentUser = JSON.parse(currentUserStr);
+        if (currentUser.role !== 'gestao') {
+          router.push('/');
+          return;
+        }
+
+        const cols = getAllColaboradores().filter(c => c.status === 'ativo');
+        const avals = getAllAvaliacoes11();
+        setColaboradores(cols);
+        setAvaliacoes(avals);
+
+        // Sincronizar com a planilha publicada (atualiza ao carregar/atualizar a página)
+        try {
+          const res = await fetch('/api/sheet/registros-diarios', { cache: 'no-store' });
+          const json = await res.json();
+          if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
+            const registros = mapSheetRowsToRegistros(json.data, getColaboradorIdByName);
+            setRegistrosDiarios(registros);
+            return;
+          }
+        } catch (_) {
+          // Fallback: dados locais
+        }
+        initializeRegistrosDiarios();
+        setRegistrosDiarios(getAllRegistrosDiarios());
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        initializeRegistrosDiarios();
+        setRegistrosDiarios(getAllRegistrosDiarios());
+      } finally {
+        setLoading(false);
       }
+    };
 
-      initializeRegistrosDiarios();
-      const cols = getAllColaboradores().filter(c => c.status === 'ativo');
-      const avals = getAllAvaliacoes11();
-      const registros = getAllRegistrosDiarios();
-
-      setColaboradores(cols);
-      setAvaliacoes(avals);
-      setRegistrosDiarios(registros);
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-    } finally {
-      setLoading(false);
-    }
+    load();
   }, [router]);
 
   const getIndicadores = (colaboradorId: string): IndicadoresColaborador => {
@@ -128,17 +146,28 @@ export default function GestaoDashboardPage() {
     { name: 'Baixo Risco', value: distribuicaoRisco.baixo, color: '#10b981' },
   ];
 
-  // Calcular KPIs dos registros diários
+  // Calcular KPIs dos registros diários (todos os períodos da planilha)
   const totalLigacoes = registrosDiarios.reduce((sum, r) => sum + r.numeroLigacoes, 0);
   const totalAtendidas = registrosDiarios.reduce((sum, r) => sum + r.ligacoesAtendidas, 0);
   const totalAberturas = registrosDiarios.reduce((sum, r) => sum + r.numeroAberturas, 0);
   const totalFormularios = registrosDiarios.reduce((sum, r) => sum + r.numeroFormularios, 0);
   const totalOnlines = registrosDiarios.reduce((sum, r) => sum + r.numeroOnlines, 0);
-  
+  const totalCallsAgendadas = registrosDiarios.reduce((sum, r) => sum + (r.callsAgendadas ?? 0), 0);
+  const totalCallsRealizadas = registrosDiarios.reduce((sum, r) => sum + (r.callsRealizadas ?? 0), 0);
+
+  // Conversões no funil (cada etapa em relação à anterior)
+  // Conv Atendidas = % das ligações que foram atendidas
   const convAtendidas = totalLigacoes > 0 ? ((totalAtendidas / totalLigacoes) * 100).toFixed(2) : '0.00';
+  // Conv Aberturas = % das atendidas que chegaram em aberturas
   const convAberturas = totalAtendidas > 0 ? ((totalAberturas / totalAtendidas) * 100).toFixed(2) : '0.00';
+  // Conv Formulários = % das aberturas que viraram formulários
   const convFormularios = totalAberturas > 0 ? ((totalFormularios / totalAberturas) * 100).toFixed(2) : '0.00';
+  // Conv Onlines = % dos formulários que viraram onlines
   const convOnlines = totalFormularios > 0 ? ((totalOnlines / totalFormularios) * 100).toFixed(2) : '0.00';
+  // Conv Calls Agendadas = % dos onlines que viraram calls agendadas
+  const convCallsAgendadas = totalOnlines > 0 ? ((totalCallsAgendadas / totalOnlines) * 100).toFixed(2) : '0.00';
+  // Conv Calls Realizadas = % das calls agendadas que foram realizadas
+  const convCallsRealizadas = totalCallsAgendadas > 0 ? ((totalCallsRealizadas / totalCallsAgendadas) * 100).toFixed(2) : '0.00';
 
   // Preparar dados para gráfico de linha por vendedor
   const registrosPorVendedor = colaboradores.map(col => {
@@ -162,7 +191,7 @@ export default function GestaoDashboardPage() {
 
   const chartDataTemporal = Object.values(registrosPorData)
     .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime())
-    .slice(-14); // Últimas 2 semanas
+    .slice(-90); // Últimos 90 dias (todos os períodos disponíveis quando há menos datas)
 
   // Preparar dados para gráfico de linha por vendedor (múltiplas séries)
   const topVendedores = colaboradores.map(col => {
@@ -228,57 +257,68 @@ export default function GestaoDashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-white">Dashboard Executivo</h1>
-        <p className="mt-2 text-gray-300">Visão geral de performance e indicadores</p>
+        <p className="mt-2 text-gray-300">Visão geral de performance e indicadores — dados sincronizados com a planilha ao carregar/atualizar a página</p>
       </div>
 
-      {/* KPIs dos Registros Diários */}
+      {/* KPIs dos Registros Diários - todos os períodos da planilha */}
       <div className="card-white p-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Métricas de Performance</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+        <h2 className="text-lg font-semibold text-white mb-4">Métricas de Performance (funil de conversão)</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
           <div className="card-white p-4 border border-blue-500/50">
             <div className="flex items-center justify-between mb-2">
               <Phone className="h-5 w-5 text-blue-400" />
               <span className="text-2xl font-bold text-white">{totalLigacoes.toLocaleString('pt-BR')}</span>
             </div>
             <p className="text-sm text-gray-300">Ligações</p>
-            <p className="text-xs text-gray-400 mt-1">Conv Atendidas (%): {convAtendidas}%</p>
+            <p className="text-xs text-gray-400 mt-1">Conv Atendidas: {convAtendidas}% (ligações atendidas)</p>
           </div>
-          
           <div className="card-white p-4 border border-blue-500/50">
             <div className="flex items-center justify-between mb-2">
               <PhoneCall className="h-5 w-5 text-green-400" />
               <span className="text-2xl font-bold text-white">{totalAtendidas.toLocaleString('pt-BR')}</span>
             </div>
             <p className="text-sm text-gray-300">Atendidas</p>
-            <p className="text-xs text-gray-400 mt-1">Conv Aberturas (%): {convAberturas}%</p>
+            <p className="text-xs text-gray-400 mt-1">Conv Aberturas: {convAberturas}% (atendidas → aberturas)</p>
           </div>
-          
           <div className="card-white p-4 border border-blue-500/50">
             <div className="flex items-center justify-between mb-2">
               <TrendingUp className="h-5 w-5 text-yellow-400" />
               <span className="text-2xl font-bold text-white">{totalAberturas.toLocaleString('pt-BR')}</span>
             </div>
             <p className="text-sm text-gray-300">Aberturas</p>
-            <p className="text-xs text-gray-400 mt-1">Conv Formulários (%): {convFormularios}%</p>
+            <p className="text-xs text-gray-400 mt-1">Conv Formulários: {convFormularios}% (aberturas → formulários)</p>
           </div>
-          
           <div className="card-white p-4 border border-blue-500/50">
             <div className="flex items-center justify-between mb-2">
               <FileText className="h-5 w-5 text-purple-400" />
               <span className="text-2xl font-bold text-white">{totalFormularios.toLocaleString('pt-BR')}</span>
             </div>
             <p className="text-sm text-gray-300">Formulários</p>
-            <p className="text-xs text-gray-400 mt-1">Conv Onlines (%): {convOnlines}%</p>
+            <p className="text-xs text-gray-400 mt-1">Conv Onlines: {convOnlines}% (formulários → onlines)</p>
           </div>
-          
           <div className="card-white p-4 border border-blue-500/50">
             <div className="flex items-center justify-between mb-2">
               <Globe className="h-5 w-5 text-cyan-400" />
               <span className="text-2xl font-bold text-white">{totalOnlines.toLocaleString('pt-BR')}</span>
             </div>
             <p className="text-sm text-gray-300">Onlines</p>
+            <p className="text-xs text-gray-400 mt-1">Conv Calls Agend.: {convCallsAgendadas}% (onlines → agendadas)</p>
           </div>
-          
+          <div className="card-white p-4 border border-blue-500/50">
+            <div className="flex items-center justify-between mb-2">
+              <Phone className="h-5 w-5 text-indigo-400" />
+              <span className="text-2xl font-bold text-white">{totalCallsAgendadas.toLocaleString('pt-BR')}</span>
+            </div>
+            <p className="text-sm text-gray-300">Calls Agendadas</p>
+            <p className="text-xs text-gray-400 mt-1">Conv Realizadas: {convCallsRealizadas}% (agendadas → realizadas)</p>
+          </div>
+          <div className="card-white p-4 border border-blue-500/50">
+            <div className="flex items-center justify-between mb-2">
+              <PhoneCall className="h-5 w-5 text-teal-400" />
+              <span className="text-2xl font-bold text-white">{totalCallsRealizadas.toLocaleString('pt-BR')}</span>
+            </div>
+            <p className="text-sm text-gray-300">Calls Realizadas</p>
+          </div>
           <div className="card-white p-4 border border-blue-500/50">
             <div className="flex items-center justify-between mb-2">
               <Users className="h-5 w-5 text-pink-400" />

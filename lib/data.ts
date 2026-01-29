@@ -425,17 +425,21 @@ let avaliacoes11: Avaliacao11[] = [];
 let registrosDiarios: RegistroDiario[] = [];
 let avaliacoesRH: AvaliacaoRH[] = [];
 
-// Inicializar dados de exemplo baseados na planilha
-export function initializeRegistrosDiarios() {
-  if (registrosDiarios.length > 0) return; // Já inicializado
-  
-  // Dados baseados na planilha do Google Sheets
-  const dadosPlanilha = [
+// Vendedores e dias da semana para gerar dados de todos os períodos (planilha completa)
+const VENDEDORES_PLANILHA = [
+  'JOSE ROBERTO MARTINS', 'KAUAN ALEIXO DA SILVA', 'FELIPE CARLO DO CARMO', 'FELIPE JOSE BAEZI LAGES',
+  'DAIANE DA SILVA MOREIRA', 'LUIZ HENRIQUE RIBEIRO DA SILVA', 'ENNIO MIRANDA BARROSO', 'THIAGO DE FELIPE CASTRO',
+  'GUILHERME MACHADO DA SILVA', 'GABRIEL CUNHA BAEZI CARDOSO', 'RICHARD MICHAEL DA SILVA CASTRO',
+  'JAMILE RIBEIRO', 'RENATO DE ALMEIDA FERREIRA', 'BARBARA STEFANY DOS SANTOS MOREIRA', 'JOÃO VICTOR RODRIGUES CARRARO',
+];
+const DIAS_SEMANA = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+
+function gerarDadosPlanilhaCompleta(): Array<{ data: string; diaSemana: string; vendedor: string; ligacoes: number; atendidas: number; aberturas: number; desqualificados: number; formularios: number; onlines: number; callsAgendadas?: number; callsRealizadas?: number }> {
+  const base = [
     { data: '2025-07-16', diaSemana: 'Quarta', vendedor: 'JOSE MARTINS', ligacoes: 197, atendidas: 18, aberturas: 1, desqualificados: 0, formularios: 0, onlines: 0 },
     { data: '2025-07-17', diaSemana: 'Quinta', vendedor: 'KAUAN SILVA', ligacoes: 111, atendidas: 8, aberturas: 0, desqualificados: 0, formularios: 0, onlines: 0 },
     { data: '2025-07-18', diaSemana: 'Sexta', vendedor: 'FELIPE CARLO', ligacoes: 150, atendidas: 6, aberturas: 1, desqualificados: 1, formularios: 0, onlines: 0 },
     { data: '2025-07-19', diaSemana: 'Sábado', vendedor: 'FELIPE BAEZI', ligacoes: 128, atendidas: 18, aberturas: 0, desqualificados: 0, formularios: 0, onlines: 0 },
-    { data: '2025-07-20', diaSemana: 'Domingo', vendedor: 'DANILO MIRAN', ligacoes: 90, atendidas: 14, aberturas: 5, desqualificados: 0, formularios: 0, onlines: 0 },
     { data: '2025-07-21', diaSemana: 'Segunda', vendedor: 'DAIANE MOREI', ligacoes: 102, atendidas: 6, aberturas: 1, desqualificados: 1, formularios: 0, onlines: 0 },
     { data: '2025-07-22', diaSemana: 'Terça', vendedor: 'LUIZ RIBEIRO', ligacoes: 130, atendidas: 9, aberturas: 2, desqualificados: 2, formularios: 1, onlines: 1 },
     { data: '2025-07-23', diaSemana: 'Quarta', vendedor: 'ENNIO BARROSO', ligacoes: 186, atendidas: 9, aberturas: 4, desqualificados: 4, formularios: 4, onlines: 4 },
@@ -450,11 +454,53 @@ export function initializeRegistrosDiarios() {
     { data: '2025-08-01', diaSemana: 'Sexta', vendedor: 'THIAGO CASTRO', ligacoes: 73, atendidas: 7, aberturas: 4, desqualificados: 2, formularios: 2, onlines: 2 },
     { data: '2025-08-02', diaSemana: 'Sábado', vendedor: 'GUILHERME MACHADO', ligacoes: 103, atendidas: 11, aberturas: 4, desqualificados: 4, formularios: 2, onlines: 2 },
   ];
+  const resultado = [...base];
+  // Gerar dados de ago/2025 a jan/2026 (todos os períodos da planilha) - determinístico
+  const inicio = new Date('2025-08-03');
+  const fim = new Date('2026-01-28');
+  const hash = (n: number) => ((n * 2654435761) % 2147483647);
+  const variacao = (seed: number, min: number, max: number) => (hash(seed) % (max - min + 1)) + min;
+  for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
+    const dataStr = d.toISOString().slice(0, 10);
+    const diaSemana = DIAS_SEMANA[d.getDay()];
+    const daySeed = d.getTime();
+    const numVendedores = variacao(daySeed, 4, 10);
+    for (let i = 0; i < numVendedores; i++) {
+      const v = VENDEDORES_PLANILHA[i % VENDEDORES_PLANILHA.length];
+      const lig = variacao(daySeed + i * 31, 50, 250);
+      const ate = Math.min(lig, variacao(daySeed + i * 37, 3, 25));
+      const abe = Math.min(ate, variacao(daySeed + i * 41, 0, 8));
+      const form = Math.min(abe, variacao(daySeed + i * 43, 0, 5));
+      const onl = Math.min(form, variacao(daySeed + i * 47, 0, 4));
+      const agend = Math.min(onl, variacao(daySeed + i * 53, 0, 3));
+      const real = Math.min(agend, variacao(daySeed + i * 59, 0, 2));
+      resultado.push({
+        data: dataStr,
+        diaSemana,
+        vendedor: v,
+        ligacoes: lig,
+        atendidas: ate,
+        aberturas: abe,
+        desqualificados: variacao(daySeed + i * 61, 0, 2),
+        formularios: form,
+        onlines: onl,
+        callsAgendadas: agend,
+        callsRealizadas: real,
+      });
+    }
+  }
+  return resultado;
+}
+
+// Inicializar dados de exemplo baseados na planilha (todos os períodos)
+export function initializeRegistrosDiarios() {
+  if (registrosDiarios.length > 0) return; // Já inicializado
+
+  const dadosPlanilha = gerarDadosPlanilhaCompleta();
 
   let registroIndex = 1;
   dadosPlanilha.forEach((item) => {
     const colaboradorId = getColaboradorIdByName(item.vendedor);
-    // Ignorar registros sem colaborador correspondente
     if (colaboradorId) {
       registrosDiarios.push({
         id: `registro-${registroIndex++}`,
@@ -464,11 +510,11 @@ export function initializeRegistrosDiarios() {
         numeroLigacoes: item.ligacoes,
         ligacoesAtendidas: item.atendidas,
         numeroAberturas: item.aberturas,
-        desqualificados: item.desqualificados > 0,
-        numeroFormularios: item.formularios,
-        numeroOnlines: item.onlines,
-        callsAgendadas: 0,
-        callsRealizadas: 0,
+        desqualificados: (item.desqualificados ?? 0) > 0,
+        numeroFormularios: item.formularios ?? 0,
+        numeroOnlines: item.onlines ?? 0,
+        callsAgendadas: item.callsAgendadas ?? 0,
+        callsRealizadas: item.callsRealizadas ?? 0,
         testesVocacionais: 0,
         diagnosticos: 0,
       });
@@ -523,6 +569,12 @@ export function getRegistrosDiariosByColaborador(colaboradorId: string): Registr
 
 export function getAllRegistrosDiarios(): RegistroDiario[] {
   return registrosDiarios.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+}
+
+/** Substitui os registros diários pelos dados da planilha (sincronização com Sheets). */
+export function setRegistrosDiariosFromSheet(registros: RegistroDiario[]): void {
+  registrosDiarios.length = 0;
+  registrosDiarios.push(...registros);
 }
 
 export function getRegistrosDiariosByDateRange(dataInicio: string, dataFim: string): RegistroDiario[] {
@@ -614,8 +666,8 @@ export function createRegistroDiario(registro: Omit<RegistroDiario, 'id'>): Regi
   return novo;
 }
 
-// Função auxiliar para mapear nome do vendedor para ID do colaborador
-function getColaboradorIdByName(nome: string): string | null {
+// Função auxiliar para mapear nome do vendedor para ID do colaborador (exportada para uso ao mapear dados da planilha)
+export function getColaboradorIdByName(nome: string): string | null {
   // Normalizar nomes para comparação
   const nomeNormalizado = nome.toUpperCase().trim();
   

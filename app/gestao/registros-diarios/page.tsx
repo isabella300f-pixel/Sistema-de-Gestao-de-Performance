@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { RegistroDiario, Colaborador } from '@/types';
-import { getAllColaboradores, initializeRegistrosDiarios, pesquisarRegistrosDiarios } from '@/lib/data';
+import { getAllColaboradores, initializeRegistrosDiarios, pesquisarRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
+import { mapSheetRowsToRegistros } from '@/lib/sheet';
 import { formatDate } from '@/lib/utils';
 import { Search, Download } from 'lucide-react';
 
@@ -28,20 +29,38 @@ export default function RegistrosDiariosPage() {
       return;
     }
 
-    try {
-      const currentUser = JSON.parse(currentUserStr);
-      if (currentUser.role !== 'gestao') {
-        router.push('/');
-        return;
-      }
+    const load = async () => {
+      try {
+        const currentUser = JSON.parse(currentUserStr);
+        if (currentUser.role !== 'gestao') {
+          router.push('/');
+          return;
+        }
 
-      initializeRegistrosDiarios();
-      setColaboradores(getAllColaboradores());
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-    } finally {
-      setLoading(false);
-    }
+        setColaboradores(getAllColaboradores());
+
+        // Sincronizar com a planilha publicada (ao carregar/atualizar a página)
+        try {
+          const res = await fetch('/api/sheet/registros-diarios', { cache: 'no-store' });
+          const json = await res.json();
+          if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
+            const registros = mapSheetRowsToRegistros(json.data, getColaboradorIdByName);
+            setRegistrosDiariosFromSheet(registros);
+          } else {
+            initializeRegistrosDiarios();
+          }
+        } catch (_) {
+          initializeRegistrosDiarios();
+        }
+      } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+        initializeRegistrosDiarios();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
   }, [router]);
 
   const getColaboradorName = (colaboradorId: string): string => {
@@ -79,7 +98,7 @@ export default function RegistrosDiariosPage() {
       <div>
         <h1 className="text-3xl font-bold text-white">Registros Diários</h1>
         <p className="mt-2 text-gray-300">
-          Pesquise na planilha: defina os filtros e clique em Pesquisar. A tabela exibirá apenas os dados que correspondem aos filtros.
+          Dados sincronizados com a planilha ao carregar a página. Defina os filtros e clique em Pesquisar. Sem filtros = todos os períodos e vendedores.
         </p>
       </div>
 
