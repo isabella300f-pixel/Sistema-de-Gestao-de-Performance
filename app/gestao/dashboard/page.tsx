@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Colaborador, Avaliacao11, IndicadoresColaborador, RegistroDiario } from '@/types';
-import { getAllColaboradores, getAllAvaliacoes11, getAllRegistrosDiarios, initializeRegistrosDiarios, getColaboradorIdByName } from '@/lib/data';
+import { getAllColaboradores, getAllAvaliacoes11, getAllRegistrosDiarios, initializeRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
 import { mapSheetRowsToRegistros } from '@/lib/sheet';
 import { calculateScore } from '@/lib/utils';
 import { TrendingUp, TrendingDown, AlertTriangle, Users, Award, XCircle, Phone, PhoneCall, FileText, Globe } from 'lucide-react';
@@ -16,6 +16,10 @@ export default function GestaoDashboardPage() {
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao11[]>([]);
   const [registrosDiarios, setRegistrosDiarios] = useState<RegistroDiario[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterVendedor, setFilterVendedor] = useState<string>('');
+  const [filterDataInicio, setFilterDataInicio] = useState<string>('');
+  const [filterDataFim, setFilterDataFim] = useState<string>('');
+  const [filterDiaSemana, setFilterDiaSemana] = useState<string>('');
 
   useEffect(() => {
     const currentUserStr = localStorage.getItem('currentUser');
@@ -38,19 +42,25 @@ export default function GestaoDashboardPage() {
         setAvaliacoes(avals);
 
         // Sincronizar com a planilha publicada (atualiza ao carregar/atualizar a página)
+        let dadosFinais: RegistroDiario[] = [];
         try {
           const res = await fetch('/api/sheet/registros-diarios', { cache: 'no-store' });
           const json = await res.json();
           if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
             const registros = mapSheetRowsToRegistros(json.data, getColaboradorIdByName);
-            setRegistrosDiarios(registros);
-            return;
+            if (registros.length > 0) {
+              dadosFinais = registros;
+              setRegistrosDiariosFromSheet(registros);
+            }
           }
         } catch (_) {
-          // Fallback: dados locais
+          // segue para fallback
         }
-        initializeRegistrosDiarios();
-        setRegistrosDiarios(getAllRegistrosDiarios());
+        if (dadosFinais.length === 0) {
+          initializeRegistrosDiarios();
+          dadosFinais = getAllRegistrosDiarios();
+        }
+        setRegistrosDiarios(dadosFinais);
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
         initializeRegistrosDiarios();
@@ -146,14 +156,36 @@ export default function GestaoDashboardPage() {
     { name: 'Baixo Risco', value: distribuicaoRisco.baixo, color: '#10b981' },
   ];
 
-  // Calcular KPIs dos registros diários (todos os períodos da planilha)
-  const totalLigacoes = registrosDiarios.reduce((sum, r) => sum + r.numeroLigacoes, 0);
-  const totalAtendidas = registrosDiarios.reduce((sum, r) => sum + r.ligacoesAtendidas, 0);
-  const totalAberturas = registrosDiarios.reduce((sum, r) => sum + r.numeroAberturas, 0);
-  const totalFormularios = registrosDiarios.reduce((sum, r) => sum + r.numeroFormularios, 0);
-  const totalOnlines = registrosDiarios.reduce((sum, r) => sum + r.numeroOnlines, 0);
-  const totalCallsAgendadas = registrosDiarios.reduce((sum, r) => sum + (r.callsAgendadas ?? 0), 0);
-  const totalCallsRealizadas = registrosDiarios.reduce((sum, r) => sum + (r.callsRealizadas ?? 0), 0);
+  // Aplicar filtros do dashboard (Vendedor, Dia da Semana, Período)
+  const registrosFiltrados = (() => {
+    let list = [...registrosDiarios];
+    if (filterVendedor) {
+      list = list.filter(r => r.colaboradorId === filterVendedor);
+    }
+    if (filterDataInicio) {
+      const inicio = new Date(filterDataInicio);
+      list = list.filter(r => new Date(r.data) >= inicio);
+    }
+    if (filterDataFim) {
+      const fim = new Date(filterDataFim);
+      list = list.filter(r => new Date(r.data) <= fim);
+    }
+    if (filterDiaSemana) {
+      list = list.filter(r => r.diaSemana === filterDiaSemana);
+    }
+    return list;
+  })();
+
+  const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+
+  // Calcular KPIs dos registros diários (respeitando filtros)
+  const totalLigacoes = registrosFiltrados.reduce((sum, r) => sum + r.numeroLigacoes, 0);
+  const totalAtendidas = registrosFiltrados.reduce((sum, r) => sum + r.ligacoesAtendidas, 0);
+  const totalAberturas = registrosFiltrados.reduce((sum, r) => sum + r.numeroAberturas, 0);
+  const totalFormularios = registrosFiltrados.reduce((sum, r) => sum + r.numeroFormularios, 0);
+  const totalOnlines = registrosFiltrados.reduce((sum, r) => sum + r.numeroOnlines, 0);
+  const totalCallsAgendadas = registrosFiltrados.reduce((sum, r) => sum + (r.callsAgendadas ?? 0), 0);
+  const totalCallsRealizadas = registrosFiltrados.reduce((sum, r) => sum + (r.callsRealizadas ?? 0), 0);
 
   // Conversões no funil (cada etapa em relação à anterior)
   // Conv Atendidas = % das ligações que foram atendidas
@@ -169,9 +201,9 @@ export default function GestaoDashboardPage() {
   // Conv Calls Realizadas = % das calls agendadas que foram realizadas
   const convCallsRealizadas = totalCallsAgendadas > 0 ? ((totalCallsRealizadas / totalCallsAgendadas) * 100).toFixed(2) : '0.00';
 
-  // Preparar dados para gráfico de linha por vendedor
+  // Preparar dados para gráfico de linha por vendedor (usando dados filtrados)
   const registrosPorVendedor = colaboradores.map(col => {
-    const regsColab = registrosDiarios.filter(r => r.colaboradorId === col.id);
+    const regsColab = registrosFiltrados.filter(r => r.colaboradorId === col.id);
     const totalPorVendedor = regsColab.reduce((sum, r) => sum + r.numeroLigacoes, 0);
     return {
       vendedor: col.name,
@@ -179,8 +211,8 @@ export default function GestaoDashboardPage() {
     };
   }).sort((a, b) => b.total - a.total).slice(0, 10);
 
-  // Preparar dados para gráfico de linha temporal
-  const registrosPorData = registrosDiarios.reduce((acc, reg) => {
+  // Preparar dados para gráfico de linha temporal (dados filtrados)
+  const registrosPorData = registrosFiltrados.reduce((acc, reg) => {
     const data = reg.data;
     if (!acc[data]) {
       acc[data] = { data, total: 0 };
@@ -193,9 +225,9 @@ export default function GestaoDashboardPage() {
     .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime())
     .slice(-90); // Últimos 90 dias (todos os períodos disponíveis quando há menos datas)
 
-  // Preparar dados para gráfico de linha por vendedor (múltiplas séries)
+  // Preparar dados para gráfico de linha por vendedor (múltiplas séries, dados filtrados)
   const topVendedores = colaboradores.map(col => {
-    const regsColab = registrosDiarios.filter(r => r.colaboradorId === col.id);
+    const regsColab = registrosFiltrados.filter(r => r.colaboradorId === col.id);
     const total = regsColab.reduce((sum, r) => sum + r.numeroLigacoes, 0);
     return { col, total, regs: regsColab };
   }).sort((a, b) => b.total - a.total).slice(0, 4);
@@ -205,16 +237,16 @@ export default function GestaoDashboardPage() {
   const chartDataPorDiaSemana = diasSemana.map(dia => {
     const item: any = { dia };
     topVendedores.forEach(({ col }) => {
-      const regs = registrosDiarios.filter(r => r.colaboradorId === col.id && r.diaSemana === dia);
+      const regs = registrosFiltrados.filter(r => r.colaboradorId === col.id && r.diaSemana === dia);
       const total = regs.reduce((sum, r) => sum + r.numeroLigacoes, 0);
       item[col.name.split(' ').slice(0, 2).join(' ')] = total;
     });
     return item;
   }).filter(d => Object.values(d).some((v: any) => typeof v === 'number' && v > 0));
 
-  // Preparar dados para gráfico de rosca (distribuição de ligações por vendedor)
+  // Preparar dados para gráfico de rosca (distribuição de ligações por vendedor, dados filtrados)
   const distribLigacoesPorVendedor = colaboradores.map(col => {
-    const regsColab = registrosDiarios.filter(r => r.colaboradorId === col.id);
+    const regsColab = registrosFiltrados.filter(r => r.colaboradorId === col.id);
     const total = regsColab.reduce((sum, r) => sum + r.numeroLigacoes, 0);
     return {
       name: col.name.split(' ').slice(0, 2).join(' '),
@@ -222,8 +254,8 @@ export default function GestaoDashboardPage() {
     };
   }).filter(d => d.value > 0).sort((a, b) => b.value - a.value).slice(0, 8);
 
-  // Preparar dados para tabela de calor semanal
-  const registrosPorSemana = registrosDiarios.reduce((acc, reg) => {
+  // Preparar dados para tabela de calor semanal (dados filtrados)
+  const registrosPorSemana = registrosFiltrados.reduce((acc, reg) => {
     const data = new Date(reg.data);
     const semana = `Semana ${Math.ceil(data.getDate() / 7)}`;
     const colab = colaboradores.find(c => c.id === reg.colaboradorId);
@@ -260,7 +292,72 @@ export default function GestaoDashboardPage() {
         <p className="mt-2 text-gray-300">Visão geral de performance e indicadores — dados sincronizados com a planilha ao carregar/atualizar a página</p>
       </div>
 
-      {/* KPIs dos Registros Diários - todos os períodos da planilha */}
+      {/* Filtros */}
+      <div className="card-white p-6">
+        <h2 className="text-sm font-semibold text-gray-300 mb-4">Filtros</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Vendedor</label>
+            <select
+              value={filterVendedor}
+              onChange={(e) => setFilterVendedor(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Todos</option>
+              {colaboradores.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Dia da Semana</label>
+            <select
+              value={filterDiaSemana}
+              onChange={(e) => setFilterDiaSemana(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Todos</option>
+              {diasSemana.map((dia) => (
+                <option key={dia} value={dia}>{dia}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Data Início</label>
+            <input
+              type="date"
+              value={filterDataInicio}
+              onChange={(e) => setFilterDataInicio(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Data Fim</label>
+            <input
+              type="date"
+              value={filterDataFim}
+              onChange={(e) => setFilterDataFim(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div className="flex items-end">
+            <button
+              type="button"
+              onClick={() => {
+                setFilterVendedor('');
+                setFilterDiaSemana('');
+                setFilterDataInicio('');
+                setFilterDataFim('');
+              }}
+              className="w-full px-4 py-2 bg-gray-700 border border-gray-500 rounded-md text-gray-300 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              Limpar filtros
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* KPIs dos Registros Diários (respeitando filtros) */}
       <div className="card-white p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Métricas de Performance (funil de conversão)</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
@@ -336,11 +433,11 @@ export default function GestaoDashboardPage() {
           <h2 className="text-lg font-semibold text-white mb-4">Valor da Métrica Total por Vendedor</h2>
           <ResponsiveContainer width="100%" height={350}>
             <LineChart data={(() => {
-              const datas = Array.from(new Set(registrosDiarios.map(r => r.data))).sort();
+              const datas = Array.from(new Set(registrosFiltrados.map(r => r.data))).sort();
               return datas.map(data => {
                 const item: any = { data };
                 topVendedores.forEach(({ col }) => {
-                  const regs = registrosDiarios.filter(r => r.colaboradorId === col.id && r.data === data);
+                  const regs = registrosFiltrados.filter(r => r.colaboradorId === col.id && r.data === data);
                   const total = regs.reduce((sum, r) => sum + r.numeroLigacoes, 0);
                   item[col.name.split(' ').slice(0, 2).join(' ')] = total;
                 });

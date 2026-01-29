@@ -8,6 +8,6 @@ if (Test-Path ".git/index.lock") {
 }
 git add -A
 git status
-git commit -m "Remove telas RH (Painel/Registros Diarios), pesquisa filtrada em Registros Diarios"
+git commit -m "Dashboard Executivo: filtros (Vendedor, Dia da Semana, Periodo) e fallback de dados ao carregar"
 git push origin main
 Write-Host "Push concluido com sucesso." -ForegroundColor Green
