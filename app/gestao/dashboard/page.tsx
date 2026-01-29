@@ -49,16 +49,30 @@ export default function GestaoDashboardPage() {
   const [chartComparativoVendedor, setChartComparativoVendedor] = useState<string>('');
   const [chartComparativoSemanas, setChartComparativoSemanas] = useState<string[]>([]);
   const [semanasDropdownAberto, setSemanasDropdownAberto] = useState(false);
+  const [dropdownValorMetricaAberto, setDropdownValorMetricaAberto] = useState(false);
+  const [dropdownVendedorAberto, setDropdownVendedorAberto] = useState(false);
+  const [dropdownDiaSemanaAberto, setDropdownDiaSemanaAberto] = useState(false);
+  const [dropdownComparativoVendedorAberto, setDropdownComparativoVendedorAberto] = useState(false);
   const semanasDropdownRef = useRef<HTMLDivElement>(null);
+  const valorMetricaRef = useRef<HTMLDivElement>(null);
+  const vendedorRef = useRef<HTMLDivElement>(null);
+  const diaSemanaRef = useRef<HTMLDivElement>(null);
+  const comparativoVendedorRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (semanasDropdownRef.current && !semanasDropdownRef.current.contains(e.target as Node)) {
-        setSemanasDropdownAberto(false);
-      }
+      const target = e.target as Node;
+      if (semanasDropdownRef.current && !semanasDropdownRef.current.contains(target)) setSemanasDropdownAberto(false);
+      if (valorMetricaRef.current && !valorMetricaRef.current.contains(target)) setDropdownValorMetricaAberto(false);
+      if (vendedorRef.current && !vendedorRef.current.contains(target)) setDropdownVendedorAberto(false);
+      if (diaSemanaRef.current && !diaSemanaRef.current.contains(target)) setDropdownDiaSemanaAberto(false);
+      if (comparativoVendedorRef.current && !comparativoVendedorRef.current.contains(target)) setDropdownComparativoVendedorAberto(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+  const classeDropdownBtn = 'w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white text-left focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-between';
+  const classeDropdownPanel = 'absolute z-10 mt-1 w-full rounded-md border border-blue-500/50 bg-gray-800 shadow-lg max-h-56 overflow-auto';
+  const classeDropdownItem = 'flex items-center gap-2 px-4 py-2.5 hover:bg-gray-700 cursor-pointer text-sm text-white border-b border-gray-700/50 last:border-0';
 
   useEffect(() => {
     const currentUserStr = localStorage.getItem('currentUser');
@@ -355,43 +369,97 @@ export default function GestaoDashboardPage() {
       <div className="card-white p-6">
         <h2 className="text-sm font-semibold text-gray-300 mb-4">Filtros</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-          <div>
+          <div className="relative" ref={valorMetricaRef}>
             <label className="block text-xs text-gray-400 mb-1">Valor da métrica</label>
-            <select
-              value={filterValorMetrica}
-              onChange={(e) => setFilterValorMetrica(e.target.value as keyof RegistroDiario)}
-              className="w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <button
+              type="button"
+              onClick={() => setDropdownValorMetricaAberto(!dropdownValorMetricaAberto)}
+              className={classeDropdownBtn}
             >
-              {METRICAS_OPCOES.map((m) => (
-                <option key={m.value} value={m.value}>{m.label}</option>
-              ))}
-            </select>
+              <span>{labelMetricaSelecionada}</span>
+              <svg className={`w-4 h-4 flex-shrink-0 ml-2 transition-transform ${dropdownValorMetricaAberto ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {dropdownValorMetricaAberto && (
+              <div className={classeDropdownPanel}>
+                {METRICAS_OPCOES.map((m) => (
+                  <div
+                    key={m.value}
+                    onClick={() => { setFilterValorMetrica(m.value); setDropdownValorMetricaAberto(false); }}
+                    className={`${classeDropdownItem} ${filterValorMetrica === m.value ? 'bg-blue-500/20 text-blue-200' : ''}`}
+                  >
+                    {m.label}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <div>
+          <div className="relative" ref={vendedorRef}>
             <label className="block text-xs text-gray-400 mb-1">Vendedor</label>
-            <select
-              value={filterVendedor}
-              onChange={(e) => setFilterVendedor(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <button
+              type="button"
+              onClick={() => setDropdownVendedorAberto(!dropdownVendedorAberto)}
+              className={classeDropdownBtn}
             >
-              <option value="">Todos</option>
-              {colaboradoresOrdenados.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+              <span className="truncate">
+                {filterVendedor ? colaboradoresOrdenados.find(c => c.id === filterVendedor)?.name ?? 'Todos' : 'Todos'}
+              </span>
+              <svg className={`w-4 h-4 flex-shrink-0 ml-2 transition-transform ${dropdownVendedorAberto ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {dropdownVendedorAberto && (
+              <div className={classeDropdownPanel}>
+                <div
+                  onClick={() => { setFilterVendedor(''); setDropdownVendedorAberto(false); }}
+                  className={`${classeDropdownItem} ${!filterVendedor ? 'bg-blue-500/20 text-blue-200' : ''}`}
+                >
+                  Todos
+                </div>
+                {colaboradoresOrdenados.map((c) => (
+                  <div
+                    key={c.id}
+                    onClick={() => { setFilterVendedor(c.id); setDropdownVendedorAberto(false); }}
+                    className={`${classeDropdownItem} ${filterVendedor === c.id ? 'bg-blue-500/20 text-blue-200' : ''}`}
+                  >
+                    {c.name}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          <div>
+          <div className="relative" ref={diaSemanaRef}>
             <label className="block text-xs text-gray-400 mb-1">Dia da Semana</label>
-            <select
-              value={filterDiaSemana}
-              onChange={(e) => setFilterDiaSemana(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <button
+              type="button"
+              onClick={() => setDropdownDiaSemanaAberto(!dropdownDiaSemanaAberto)}
+              className={classeDropdownBtn}
             >
-              <option value="">Todos</option>
-              {diasSemana.map((dia) => (
-                <option key={dia} value={dia}>{dia}</option>
-              ))}
-            </select>
+              <span>{filterDiaSemana || 'Todos'}</span>
+              <svg className={`w-4 h-4 flex-shrink-0 ml-2 transition-transform ${dropdownDiaSemanaAberto ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {dropdownDiaSemanaAberto && (
+              <div className={classeDropdownPanel}>
+                <div
+                  onClick={() => { setFilterDiaSemana(''); setDropdownDiaSemanaAberto(false); }}
+                  className={`${classeDropdownItem} ${!filterDiaSemana ? 'bg-blue-500/20 text-blue-200' : ''}`}
+                >
+                  Todos
+                </div>
+                {diasSemana.map((dia) => (
+                  <div
+                    key={dia}
+                    onClick={() => { setFilterDiaSemana(dia); setDropdownDiaSemanaAberto(false); }}
+                    className={`${classeDropdownItem} ${filterDiaSemana === dia ? 'bg-blue-500/20 text-blue-200' : ''}`}
+                  >
+                    {dia}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div>
             <label className="block text-xs text-gray-400 mb-1">Data Início</label>
@@ -677,18 +745,39 @@ export default function GestaoDashboardPage() {
         <h2 className="text-lg font-semibold text-white mb-4">Comparativo de semanas por vendedor</h2>
         <p className="text-sm text-gray-400 mb-4">Compare a métrica ({labelMetricaSelecionada}) do vendedor entre semanas. Cada semana é de segunda a domingo.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-          <div>
+          <div className="relative" ref={comparativoVendedorRef}>
             <label className="block text-xs text-gray-400 mb-1">Vendedor</label>
-            <select
-              value={chartComparativoVendedor}
-              onChange={(e) => setChartComparativoVendedor(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            <button
+              type="button"
+              onClick={() => setDropdownComparativoVendedorAberto(!dropdownComparativoVendedorAberto)}
+              className={classeDropdownBtn}
             >
-              <option value="">Selecione o vendedor</option>
-              {colaboradoresOrdenados.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+              <span className="truncate">
+                {chartComparativoVendedor ? colaboradoresOrdenados.find(c => c.id === chartComparativoVendedor)?.name ?? 'Selecione o vendedor' : 'Selecione o vendedor'}
+              </span>
+              <svg className={`w-4 h-4 flex-shrink-0 ml-2 transition-transform ${dropdownComparativoVendedorAberto ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {dropdownComparativoVendedorAberto && (
+              <div className={classeDropdownPanel}>
+                <div
+                  onClick={() => { setChartComparativoVendedor(''); setDropdownComparativoVendedorAberto(false); }}
+                  className={`${classeDropdownItem} ${!chartComparativoVendedor ? 'bg-blue-500/20 text-blue-200' : ''}`}
+                >
+                  Selecione o vendedor
+                </div>
+                {colaboradoresOrdenados.map((c) => (
+                  <div
+                    key={c.id}
+                    onClick={() => { setChartComparativoVendedor(c.id); setDropdownComparativoVendedorAberto(false); }}
+                    className={`${classeDropdownItem} ${chartComparativoVendedor === c.id ? 'bg-blue-500/20 text-blue-200' : ''}`}
+                  >
+                    {c.name}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <div className="relative" ref={semanasDropdownRef}>
             <label className="block text-xs text-gray-400 mb-1">Semanas a comparar (segunda a domingo)</label>
@@ -709,11 +798,11 @@ export default function GestaoDashboardPage() {
               </svg>
             </button>
             {semanasDropdownAberto && (
-              <div className="absolute z-10 mt-1 w-full rounded-md border border-blue-500/50 bg-gray-800 shadow-lg max-h-56 overflow-auto">
+              <div className={classeDropdownPanel}>
                 {semanasComLabels.map((s) => (
                   <label
                     key={s.key}
-                    className="flex items-center gap-2 px-4 py-2 hover:bg-gray-700 cursor-pointer text-sm text-white"
+                    className={`${classeDropdownItem} ${chartComparativoSemanas.includes(s.key) ? 'bg-blue-500/10' : ''}`}
                   >
                     <input
                       type="checkbox"
