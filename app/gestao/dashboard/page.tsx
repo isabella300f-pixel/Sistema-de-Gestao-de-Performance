@@ -91,13 +91,23 @@ export default function GestaoDashboardPage() {
     const [y, m, d] = valor.split('-').map(Number);
     return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
   };
-  const gerarDiasCalendario = (anoMes: string) => {
+  // Usar data local (evita bug de timezone: new Date('2025-12-01') vira 30/11 em UTC-3)
+  const parseAnoMesLocal = (anoMes: string): Date => {
     const [y, m] = anoMes.split('-').map(Number);
-    const mes = new Date(y, m - 1, 1);
+    return new Date(y, m - 1, 1);
+  };
+  const gerarDiasCalendario = (anoMes: string) => {
+    const mes = parseAnoMesLocal(anoMes);
     const inicio = startOfWeek(startOfMonth(mes), { weekStartsOn: 0 });
     const fim = endOfWeek(endOfMonth(mes), { weekStartsOn: 0 });
     return eachDayOfInterval({ start: inicio, end: fim });
   };
+  // Datas disponíveis na planilha (registros diários) para restringir o calendário
+  const datasPlanilha = (() => {
+    if (!registrosDiarios.length) return { min: '', max: '' };
+    const list = registrosDiarios.map(r => r.data);
+    return { min: list.reduce((a, b) => (a <= b ? a : b), list[0]), max: list.reduce((a, b) => (a >= b ? a : b), list[0]) };
+  })();
   const classeDropdownBtn = 'w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white text-left focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-between';
   const classeDropdownPanel = 'absolute z-10 mt-1 w-full rounded-md border border-blue-500/50 bg-gray-800 shadow-lg max-h-56 overflow-auto';
   const classeDropdownItem = 'flex items-center gap-2 px-4 py-2.5 hover:bg-gray-700 cursor-pointer text-sm text-white border-b border-gray-700/50 last:border-0';
@@ -504,13 +514,23 @@ export default function GestaoDashboardPage() {
             {dataInicioPickerAberto && (
               <div className={`${classeDropdownPanel} p-3 min-w-[280px]`}>
                 <div className="flex items-center justify-between mb-3">
-                  <button type="button" onClick={() => setDataInicioViewMonth(format(subMonths(new Date(dataInicioViewMonth + '-01'), 1), 'yyyy-MM'))} className="p-1 text-white hover:bg-gray-700 rounded">
+                  <button
+                    type="button"
+                    onClick={() => setDataInicioViewMonth(format(subMonths(parseAnoMesLocal(dataInicioViewMonth), 1), 'yyyy-MM'))}
+                    className="p-1 text-white hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={datasPlanilha.min && format(subMonths(parseAnoMesLocal(dataInicioViewMonth), 1), 'yyyy-MM') < datasPlanilha.min.slice(0, 7)}
+                  >
                     <ChevronLeft size={20} />
                   </button>
                   <span className="text-sm font-medium text-white capitalize">
-                    {format(new Date(dataInicioViewMonth + '-01'), 'MMMM yyyy', { locale: ptBR })}
+                    {format(parseAnoMesLocal(dataInicioViewMonth), 'MMMM yyyy', { locale: ptBR })}
                   </span>
-                  <button type="button" onClick={() => setDataInicioViewMonth(format(addMonths(new Date(dataInicioViewMonth + '-01'), 1), 'yyyy-MM'))} className="p-1 text-white hover:bg-gray-700 rounded">
+                  <button
+                    type="button"
+                    onClick={() => setDataInicioViewMonth(format(addMonths(parseAnoMesLocal(dataInicioViewMonth), 1), 'yyyy-MM'))}
+                    className="p-1 text-white hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={datasPlanilha.max && format(addMonths(parseAnoMesLocal(dataInicioViewMonth), 1), 'yyyy-MM') > datasPlanilha.max.slice(0, 7)}
+                  >
                     <ChevronRight size={20} />
                   </button>
                 </div>
@@ -521,14 +541,16 @@ export default function GestaoDashboardPage() {
                   {gerarDiasCalendario(dataInicioViewMonth).map((day) => {
                     const dayStr = format(day, 'yyyy-MM-dd');
                     const selecionado = filterDataInicio === dayStr;
-                    const mesAtual = isSameMonth(day, new Date(dataInicioViewMonth + '-01'));
+                    const mesAtual = isSameMonth(day, parseAnoMesLocal(dataInicioViewMonth));
                     const hoje = isToday(day);
+                    const foraDoRange = (datasPlanilha.min && dayStr < datasPlanilha.min) || (datasPlanilha.max && dayStr > datasPlanilha.max);
                     return (
                       <button
                         key={dayStr}
                         type="button"
-                        onClick={() => { setFilterDataInicio(dayStr); setDataInicioPickerAberto(false); }}
-                        className={`w-8 h-8 rounded text-sm ${!mesAtual ? 'text-gray-500' : 'text-white'} ${selecionado ? 'bg-blue-500 text-white' : hoje ? 'border border-blue-400 text-blue-200' : 'hover:bg-gray-700'}`}
+                        disabled={foraDoRange}
+                        onClick={() => { if (!foraDoRange) { setFilterDataInicio(dayStr); setDataInicioPickerAberto(false); } }}
+                        className={`w-8 h-8 rounded text-sm ${!mesAtual ? 'text-gray-500' : 'text-white'} ${foraDoRange ? 'opacity-40 cursor-not-allowed' : ''} ${selecionado ? 'bg-blue-500 text-white' : !foraDoRange && hoje ? 'border border-blue-400 text-blue-200' : !foraDoRange ? 'hover:bg-gray-700' : ''}`}
                       >
                         {format(day, 'd')}
                       </button>
@@ -537,7 +559,18 @@ export default function GestaoDashboardPage() {
                 </div>
                 <div className="flex justify-between mt-3 pt-3 border-t border-gray-700">
                   <button type="button" onClick={() => { setFilterDataInicio(''); setDataInicioPickerAberto(false); }} className="text-sm text-blue-400 hover:text-blue-300">Limpar</button>
-                  <button type="button" onClick={() => { const h = format(new Date(), 'yyyy-MM-dd'); setFilterDataInicio(h); setDataInicioViewMonth(h.slice(0, 7)); setDataInicioPickerAberto(false); }} className="text-sm text-blue-400 hover:text-blue-300">Hoje</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const h = format(new Date(), 'yyyy-MM-dd');
+                      const permitido = (!datasPlanilha.min || h >= datasPlanilha.min) && (!datasPlanilha.max || h <= datasPlanilha.max);
+                      if (permitido) { setFilterDataInicio(h); setDataInicioViewMonth(h.slice(0, 7)); setDataInicioPickerAberto(false); }
+                    }}
+                    className="text-sm text-blue-400 hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={datasPlanilha.min && format(new Date(), 'yyyy-MM-dd') < datasPlanilha.min || (datasPlanilha.max && format(new Date(), 'yyyy-MM-dd') > datasPlanilha.max)}
+                  >
+                    Hoje
+                  </button>
                 </div>
               </div>
             )}
@@ -557,13 +590,23 @@ export default function GestaoDashboardPage() {
             {dataFimPickerAberto && (
               <div className={`${classeDropdownPanel} p-3 min-w-[280px]`}>
                 <div className="flex items-center justify-between mb-3">
-                  <button type="button" onClick={() => setDataFimViewMonth(format(subMonths(new Date(dataFimViewMonth + '-01'), 1), 'yyyy-MM'))} className="p-1 text-white hover:bg-gray-700 rounded">
+                  <button
+                    type="button"
+                    onClick={() => setDataFimViewMonth(format(subMonths(parseAnoMesLocal(dataFimViewMonth), 1), 'yyyy-MM'))}
+                    className="p-1 text-white hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={datasPlanilha.min && format(subMonths(parseAnoMesLocal(dataFimViewMonth), 1), 'yyyy-MM') < datasPlanilha.min.slice(0, 7)}
+                  >
                     <ChevronLeft size={20} />
                   </button>
                   <span className="text-sm font-medium text-white capitalize">
-                    {format(new Date(dataFimViewMonth + '-01'), 'MMMM yyyy', { locale: ptBR })}
+                    {format(parseAnoMesLocal(dataFimViewMonth), 'MMMM yyyy', { locale: ptBR })}
                   </span>
-                  <button type="button" onClick={() => setDataFimViewMonth(format(addMonths(new Date(dataFimViewMonth + '-01'), 1), 'yyyy-MM'))} className="p-1 text-white hover:bg-gray-700 rounded">
+                  <button
+                    type="button"
+                    onClick={() => setDataFimViewMonth(format(addMonths(parseAnoMesLocal(dataFimViewMonth), 1), 'yyyy-MM'))}
+                    className="p-1 text-white hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={datasPlanilha.max && format(addMonths(parseAnoMesLocal(dataFimViewMonth), 1), 'yyyy-MM') > datasPlanilha.max.slice(0, 7)}
+                  >
                     <ChevronRight size={20} />
                   </button>
                 </div>
@@ -574,14 +617,16 @@ export default function GestaoDashboardPage() {
                   {gerarDiasCalendario(dataFimViewMonth).map((day) => {
                     const dayStr = format(day, 'yyyy-MM-dd');
                     const selecionado = filterDataFim === dayStr;
-                    const mesAtual = isSameMonth(day, new Date(dataFimViewMonth + '-01'));
+                    const mesAtual = isSameMonth(day, parseAnoMesLocal(dataFimViewMonth));
                     const hoje = isToday(day);
+                    const foraDoRange = (datasPlanilha.min && dayStr < datasPlanilha.min) || (datasPlanilha.max && dayStr > datasPlanilha.max);
                     return (
                       <button
                         key={dayStr}
                         type="button"
-                        onClick={() => { setFilterDataFim(dayStr); setDataFimPickerAberto(false); }}
-                        className={`w-8 h-8 rounded text-sm ${!mesAtual ? 'text-gray-500' : 'text-white'} ${selecionado ? 'bg-blue-500 text-white' : hoje ? 'border border-blue-400 text-blue-200' : 'hover:bg-gray-700'}`}
+                        disabled={foraDoRange}
+                        onClick={() => { if (!foraDoRange) { setFilterDataFim(dayStr); setDataFimPickerAberto(false); } }}
+                        className={`w-8 h-8 rounded text-sm ${!mesAtual ? 'text-gray-500' : 'text-white'} ${foraDoRange ? 'opacity-40 cursor-not-allowed' : ''} ${selecionado ? 'bg-blue-500 text-white' : !foraDoRange && hoje ? 'border border-blue-400 text-blue-200' : !foraDoRange ? 'hover:bg-gray-700' : ''}`}
                       >
                         {format(day, 'd')}
                       </button>
@@ -590,7 +635,18 @@ export default function GestaoDashboardPage() {
                 </div>
                 <div className="flex justify-between mt-3 pt-3 border-t border-gray-700">
                   <button type="button" onClick={() => { setFilterDataFim(''); setDataFimPickerAberto(false); }} className="text-sm text-blue-400 hover:text-blue-300">Limpar</button>
-                  <button type="button" onClick={() => { const h = format(new Date(), 'yyyy-MM-dd'); setFilterDataFim(h); setDataFimViewMonth(h.slice(0, 7)); setDataFimPickerAberto(false); }} className="text-sm text-blue-400 hover:text-blue-300">Hoje</button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const h = format(new Date(), 'yyyy-MM-dd');
+                      const permitido = (!datasPlanilha.min || h >= datasPlanilha.min) && (!datasPlanilha.max || h <= datasPlanilha.max);
+                      if (permitido) { setFilterDataFim(h); setDataFimViewMonth(h.slice(0, 7)); setDataFimPickerAberto(false); }
+                    }}
+                    className="text-sm text-blue-400 hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={datasPlanilha.min && format(new Date(), 'yyyy-MM-dd') < datasPlanilha.min || (datasPlanilha.max && format(new Date(), 'yyyy-MM-dd') > datasPlanilha.max)}
+                  >
+                    Hoje
+                  </button>
                 </div>
               </div>
             )}
