@@ -52,7 +52,7 @@ export default function LoginPage() {
         if (user.role === 'gestor') {
           router.replace('/gestor/dashboard');
         } else if (user.role === 'rh') {
-          router.replace('/rh/painel');
+          router.replace('/rh/usuarios');
         } else if (user.role === 'gestao') {
           router.replace('/gestao/dashboard');
         } else if (user.role === 'colaborador') {

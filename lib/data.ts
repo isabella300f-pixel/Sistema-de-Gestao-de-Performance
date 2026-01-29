@@ -550,6 +550,61 @@ export function getRegistrosDiariosByVendedor(vendedorNome: string): RegistroDia
     .sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 }
 
+export interface FiltroRegistrosDiarios {
+  colaboradorId?: string;
+  dataInicio?: string;
+  dataFim?: string;
+  diaSemana?: string;
+  termoBusca?: string;
+  colaboradorIds?: string[]; // para gestor: apenas IDs da equipe
+}
+
+/** Pesquisa na planilha (registros) e retorna apenas os registros que correspondem aos filtros. */
+export function pesquisarRegistrosDiarios(filtros: FiltroRegistrosDiarios): RegistroDiario[] {
+  let resultado = [...registrosDiarios];
+
+  if (filtros.colaboradorIds && filtros.colaboradorIds.length > 0) {
+    resultado = resultado.filter(r => filtros.colaboradorIds!.includes(r.colaboradorId));
+  }
+
+  if (filtros.colaboradorId) {
+    resultado = resultado.filter(r => r.colaboradorId === filtros.colaboradorId);
+  }
+
+  if (filtros.dataInicio) {
+    const inicio = new Date(filtros.dataInicio);
+    resultado = resultado.filter(r => new Date(r.data) >= inicio);
+  }
+
+  if (filtros.dataFim) {
+    const fim = new Date(filtros.dataFim);
+    resultado = resultado.filter(r => new Date(r.data) <= fim);
+  }
+
+  if (filtros.diaSemana) {
+    resultado = resultado.filter(r => r.diaSemana === filtros.diaSemana);
+  }
+
+  if (filtros.termoBusca && filtros.termoBusca.trim()) {
+    const termo = filtros.termoBusca.toUpperCase().trim();
+    resultado = resultado.filter(r => {
+      const colab = colaboradores.find(c => c.id === r.colaboradorId);
+      const nome = colab?.name?.toUpperCase() ?? '';
+      return (
+        nome.includes(termo) ||
+        r.diaSemana.toUpperCase().includes(termo) ||
+        String(r.numeroLigacoes).includes(filtros.termoBusca!.trim()) ||
+        String(r.ligacoesAtendidas).includes(filtros.termoBusca!.trim()) ||
+        String(r.numeroAberturas).includes(filtros.termoBusca!.trim()) ||
+        String(r.numeroFormularios).includes(filtros.termoBusca!.trim()) ||
+        String(r.numeroOnlines).includes(filtros.termoBusca!.trim())
+      );
+    });
+  }
+
+  return resultado.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+}
+
 export function createRegistroDiario(registro: Omit<RegistroDiario, 'id'>): RegistroDiario {
   const novo: RegistroDiario = {
     ...registro,

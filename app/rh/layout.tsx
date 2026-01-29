@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { User } from '@/types';
-import { LayoutDashboard, Users, FileText, BarChart3, Clock, Briefcase, GraduationCap, FolderOpen, Heart, DollarSign, MessageSquare, Settings, Table } from 'lucide-react';
+import { Users, FileText, BarChart3, Clock, Briefcase, GraduationCap, FolderOpen, Heart, DollarSign, MessageSquare, Settings } from 'lucide-react';
 
 export default function RHLayout({
   children,
@@ -43,8 +43,6 @@ export default function RHLayout({
   }, [router]);
 
   const menuItems = [
-    { label: 'Painel Geral', href: '/rh/painel', icon: <LayoutDashboard size={20} /> },
-    { label: 'Registros Diários', href: '/rh/registros-diarios', icon: <Table size={20} /> },
     { label: 'Usuários', href: '/rh/usuarios', icon: <Settings size={20} /> },
     { label: 'Chat', href: '/rh/chat', icon: <MessageSquare size={20} /> },
     { label: 'Gestão de Pessoas', href: '/rh/gestao-pessoas', icon: <Users size={20} /> },
