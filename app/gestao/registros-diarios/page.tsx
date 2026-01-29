@@ -48,16 +48,21 @@ export default function RegistrosDiariosPage() {
         setColaboradores(getAllColaboradores());
 
         // Sincronizar com a planilha publicada (ao carregar/atualizar a página)
+        let dadosCarregados = false;
         try {
           const res = await fetch('/api/sheet/registros-diarios', { cache: 'no-store' });
           const json = await res.json();
           if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
             const registros = mapSheetRowsToRegistros(json.data, getColaboradorIdByName);
-            setRegistrosDiariosFromSheet(registros);
-          } else {
-            initializeRegistrosDiarios();
+            if (registros.length > 0) {
+              setRegistrosDiariosFromSheet(registros);
+              dadosCarregados = true;
+            }
           }
         } catch (_) {
+          // segue para fallback
+        }
+        if (!dadosCarregados) {
           initializeRegistrosDiarios();
         }
       } catch (error) {
