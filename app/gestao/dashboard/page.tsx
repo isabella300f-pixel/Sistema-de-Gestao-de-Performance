@@ -7,8 +7,10 @@ import { Colaborador, Avaliacao11, IndicadoresColaborador, RegistroDiario } from
 import { getAllColaboradores, getAllAvaliacoes11, getAllRegistrosDiarios, initializeRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
 import { mapSheetRowsToRegistros } from '@/lib/sheet';
 import { calculateScore } from '@/lib/utils';
-import { TrendingUp, TrendingDown, AlertTriangle, Users, Award, XCircle, Phone, PhoneCall, FileText, Globe } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Users, Award, XCircle, Phone, PhoneCall, FileText, Globe, ChevronLeft, ChevronRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend, ComposedChart, Area, AreaChart } from 'recharts';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 export default function GestaoDashboardPage() {
   const router = useRouter();
@@ -58,6 +60,18 @@ export default function GestaoDashboardPage() {
   const vendedorRef = useRef<HTMLDivElement>(null);
   const diaSemanaRef = useRef<HTMLDivElement>(null);
   const comparativoVendedorRef = useRef<HTMLDivElement>(null);
+  const [dataInicioPickerAberto, setDataInicioPickerAberto] = useState(false);
+  const [dataFimPickerAberto, setDataFimPickerAberto] = useState(false);
+  const [dataInicioViewMonth, setDataInicioViewMonth] = useState<string>(() => {
+    const n = new Date();
+    return format(n, 'yyyy-MM');
+  });
+  const [dataFimViewMonth, setDataFimViewMonth] = useState<string>(() => {
+    const n = new Date();
+    return format(n, 'yyyy-MM');
+  });
+  const dataInicioRef = useRef<HTMLDivElement>(null);
+  const dataFimRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as Node;
@@ -66,10 +80,24 @@ export default function GestaoDashboardPage() {
       if (vendedorRef.current && !vendedorRef.current.contains(target)) setDropdownVendedorAberto(false);
       if (diaSemanaRef.current && !diaSemanaRef.current.contains(target)) setDropdownDiaSemanaAberto(false);
       if (comparativoVendedorRef.current && !comparativoVendedorRef.current.contains(target)) setDropdownComparativoVendedorAberto(false);
+      if (dataInicioRef.current && !dataInicioRef.current.contains(target)) setDataInicioPickerAberto(false);
+      if (dataFimRef.current && !dataFimRef.current.contains(target)) setDataFimPickerAberto(false);
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+  const formatarDataExibicao = (valor: string) => {
+    if (!valor) return 'Selecione a data';
+    const [y, m, d] = valor.split('-').map(Number);
+    return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+  };
+  const gerarDiasCalendario = (anoMes: string) => {
+    const [y, m] = anoMes.split('-').map(Number);
+    const mes = new Date(y, m - 1, 1);
+    const inicio = startOfWeek(startOfMonth(mes), { weekStartsOn: 0 });
+    const fim = endOfWeek(endOfMonth(mes), { weekStartsOn: 0 });
+    return eachDayOfInterval({ start: inicio, end: fim });
+  };
   const classeDropdownBtn = 'w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white text-left focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-between';
   const classeDropdownPanel = 'absolute z-10 mt-1 w-full rounded-md border border-blue-500/50 bg-gray-800 shadow-lg max-h-56 overflow-auto';
   const classeDropdownItem = 'flex items-center gap-2 px-4 py-2.5 hover:bg-gray-700 cursor-pointer text-sm text-white border-b border-gray-700/50 last:border-0';
@@ -461,23 +489,111 @@ export default function GestaoDashboardPage() {
               </div>
             )}
           </div>
-          <div>
+          <div className="relative" ref={dataInicioRef}>
             <label className="block text-xs text-gray-400 mb-1">Data Início</label>
-            <input
-              type="date"
-              value={filterDataInicio}
-              onChange={(e) => setFilterDataInicio(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <button
+              type="button"
+              onClick={() => { setDataInicioPickerAberto(!dataInicioPickerAberto); if (!filterDataInicio) setDataInicioViewMonth(format(new Date(), 'yyyy-MM')); else setDataInicioViewMonth(filterDataInicio.slice(0, 7)); }}
+              className={classeDropdownBtn}
+            >
+              <span>{formatarDataExibicao(filterDataInicio)}</span>
+              <svg className={`w-4 h-4 flex-shrink-0 ml-2 transition-transform ${dataInicioPickerAberto ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {dataInicioPickerAberto && (
+              <div className={`${classeDropdownPanel} p-3 min-w-[280px]`}>
+                <div className="flex items-center justify-between mb-3">
+                  <button type="button" onClick={() => setDataInicioViewMonth(format(subMonths(new Date(dataInicioViewMonth + '-01'), 1), 'yyyy-MM'))} className="p-1 text-white hover:bg-gray-700 rounded">
+                    <ChevronLeft size={20} />
+                  </button>
+                  <span className="text-sm font-medium text-white capitalize">
+                    {format(new Date(dataInicioViewMonth + '-01'), 'MMMM yyyy', { locale: ptBR })}
+                  </span>
+                  <button type="button" onClick={() => setDataInicioViewMonth(format(addMonths(new Date(dataInicioViewMonth + '-01'), 1), 'yyyy-MM'))} className="p-1 text-white hover:bg-gray-700 rounded">
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-7 gap-0.5 mb-2 text-center text-xs text-gray-400">
+                  {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => <span key={i} className="py-1">{d}</span>)}
+                </div>
+                <div className="grid grid-cols-7 gap-0.5">
+                  {gerarDiasCalendario(dataInicioViewMonth).map((day) => {
+                    const dayStr = format(day, 'yyyy-MM-dd');
+                    const selecionado = filterDataInicio === dayStr;
+                    const mesAtual = isSameMonth(day, new Date(dataInicioViewMonth + '-01'));
+                    const hoje = isToday(day);
+                    return (
+                      <button
+                        key={dayStr}
+                        type="button"
+                        onClick={() => { setFilterDataInicio(dayStr); setDataInicioPickerAberto(false); }}
+                        className={`w-8 h-8 rounded text-sm ${!mesAtual ? 'text-gray-500' : 'text-white'} ${selecionado ? 'bg-blue-500 text-white' : hoje ? 'border border-blue-400 text-blue-200' : 'hover:bg-gray-700'}`}
+                      >
+                        {format(day, 'd')}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-between mt-3 pt-3 border-t border-gray-700">
+                  <button type="button" onClick={() => { setFilterDataInicio(''); setDataInicioPickerAberto(false); }} className="text-sm text-blue-400 hover:text-blue-300">Limpar</button>
+                  <button type="button" onClick={() => { const h = format(new Date(), 'yyyy-MM-dd'); setFilterDataInicio(h); setDataInicioViewMonth(h.slice(0, 7)); setDataInicioPickerAberto(false); }} className="text-sm text-blue-400 hover:text-blue-300">Hoje</button>
+                </div>
+              </div>
+            )}
           </div>
-          <div>
+          <div className="relative" ref={dataFimRef}>
             <label className="block text-xs text-gray-400 mb-1">Data Fim</label>
-            <input
-              type="date"
-              value={filterDataFim}
-              onChange={(e) => setFilterDataFim(e.target.value)}
-              className="w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <button
+              type="button"
+              onClick={() => { setDataFimPickerAberto(!dataFimPickerAberto); if (!filterDataFim) setDataFimViewMonth(format(new Date(), 'yyyy-MM')); else setDataFimViewMonth(filterDataFim.slice(0, 7)); }}
+              className={classeDropdownBtn}
+            >
+              <span>{formatarDataExibicao(filterDataFim)}</span>
+              <svg className={`w-4 h-4 flex-shrink-0 ml-2 transition-transform ${dataFimPickerAberto ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {dataFimPickerAberto && (
+              <div className={`${classeDropdownPanel} p-3 min-w-[280px]`}>
+                <div className="flex items-center justify-between mb-3">
+                  <button type="button" onClick={() => setDataFimViewMonth(format(subMonths(new Date(dataFimViewMonth + '-01'), 1), 'yyyy-MM'))} className="p-1 text-white hover:bg-gray-700 rounded">
+                    <ChevronLeft size={20} />
+                  </button>
+                  <span className="text-sm font-medium text-white capitalize">
+                    {format(new Date(dataFimViewMonth + '-01'), 'MMMM yyyy', { locale: ptBR })}
+                  </span>
+                  <button type="button" onClick={() => setDataFimViewMonth(format(addMonths(new Date(dataFimViewMonth + '-01'), 1), 'yyyy-MM'))} className="p-1 text-white hover:bg-gray-700 rounded">
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-7 gap-0.5 mb-2 text-center text-xs text-gray-400">
+                  {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => <span key={i} className="py-1">{d}</span>)}
+                </div>
+                <div className="grid grid-cols-7 gap-0.5">
+                  {gerarDiasCalendario(dataFimViewMonth).map((day) => {
+                    const dayStr = format(day, 'yyyy-MM-dd');
+                    const selecionado = filterDataFim === dayStr;
+                    const mesAtual = isSameMonth(day, new Date(dataFimViewMonth + '-01'));
+                    const hoje = isToday(day);
+                    return (
+                      <button
+                        key={dayStr}
+                        type="button"
+                        onClick={() => { setFilterDataFim(dayStr); setDataFimPickerAberto(false); }}
+                        className={`w-8 h-8 rounded text-sm ${!mesAtual ? 'text-gray-500' : 'text-white'} ${selecionado ? 'bg-blue-500 text-white' : hoje ? 'border border-blue-400 text-blue-200' : 'hover:bg-gray-700'}`}
+                      >
+                        {format(day, 'd')}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex justify-between mt-3 pt-3 border-t border-gray-700">
+                  <button type="button" onClick={() => { setFilterDataFim(''); setDataFimPickerAberto(false); }} className="text-sm text-blue-400 hover:text-blue-300">Limpar</button>
+                  <button type="button" onClick={() => { const h = format(new Date(), 'yyyy-MM-dd'); setFilterDataFim(h); setDataFimViewMonth(h.slice(0, 7)); setDataFimPickerAberto(false); }} className="text-sm text-blue-400 hover:text-blue-300">Hoje</button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex items-end">
             <button

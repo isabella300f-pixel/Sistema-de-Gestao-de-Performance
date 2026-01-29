@@ -50,10 +50,17 @@ export default function Layout({ children, user, menuItems }: LayoutProps) {
               >
                 {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
-              <div className="w-10 h-10 bg-ecosystem-red flex items-center justify-center">
-                <span className="text-white font-bold text-lg">300</span>
-              </div>
-              <Logo300F variant="light" size="small" />
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="flex items-center gap-3 rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ecosystem-red/50 transition-opacity"
+                title="Voltar para a página de login"
+              >
+                <div className="w-10 h-10 bg-ecosystem-red flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-bold text-lg">300</span>
+                </div>
+                <Logo300F variant="light" size="small" />
+              </button>
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-right hidden sm:block">
