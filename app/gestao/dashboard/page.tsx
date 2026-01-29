@@ -233,7 +233,6 @@ export default function GestaoDashboardPage() {
   }).sort((a, b) => b.total - a.total).slice(0, 4);
 
   // Preparar dados para gráfico de barras empilhadas por dia da semana
-  const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
   const chartDataPorDiaSemana = diasSemana.map(dia => {
     const item: any = { dia };
     topVendedores.forEach(({ col }) => {
