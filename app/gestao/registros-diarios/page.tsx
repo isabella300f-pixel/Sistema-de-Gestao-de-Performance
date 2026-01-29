@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { RegistroDiario, Colaborador } from '@/types';
 import { getAllColaboradores, initializeRegistrosDiarios, pesquisarRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
@@ -15,9 +15,17 @@ export default function RegistrosDiariosPage() {
   const [pesquisaExecutada, setPesquisaExecutada] = useState(false);
   const [resultadoPesquisa, setResultadoPesquisa] = useState<RegistroDiario[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  // Filtro padrão: mês atual ao abrir — dados já carregados na abertura
   const [filterVendedor, setFilterVendedor] = useState<string>('');
-  const [filterDataInicio, setFilterDataInicio] = useState<string>('');
-  const [filterDataFim, setFilterDataFim] = useState<string>('');
+  const [filterDataInicio, setFilterDataInicio] = useState<string>(() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  const [filterDataFim, setFilterDataFim] = useState<string>(() => {
+    const n = new Date();
+    const ultimoDia = new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
+  });
   const [filterDiaSemana, setFilterDiaSemana] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
@@ -62,6 +70,20 @@ export default function RegistrosDiariosPage() {
 
     load();
   }, [router]);
+
+  // Ao terminar de carregar, executar pesquisa uma vez com filtros padrão (mês atual) para exibir dados
+  const pesquisaInicialExecutada = useRef(false);
+  useEffect(() => {
+    if (loading || pesquisaInicialExecutada.current) return;
+    pesquisaInicialExecutada.current = true;
+    const resultado = pesquisarRegistrosDiarios({
+      dataInicio: filterDataInicio || undefined,
+      dataFim: filterDataFim || undefined,
+    });
+    setResultadoPesquisa(resultado);
+    setPesquisaExecutada(true);
+    setCurrentPage(1);
+  }, [loading]);
 
   const getColaboradorName = (colaboradorId: string): string => {
     const colaborador = colaboradores.find(c => c.id === colaboradorId);
@@ -176,7 +198,7 @@ export default function RegistrosDiariosPage() {
             <button
               onClick={() => {
                 const csv = [
-                  ['Data', 'Dia da Semana', 'Vendedor', 'Ligações', 'Atendidas', 'Aberturas', 'Desqualificados', 'Formulários', 'Onlines'].join(','),
+                  ['Data', 'Dia da Semana', 'Vendedor', 'Ligações', 'Atendidas', 'Aberturas', 'Desqualificados', 'Formulários', 'Onlines', 'Calls Agendadas', 'Calls Realizadas', 'Testes Vocacionais', 'Diagnósticos', 'Avaliação Performance', 'Sugestão Melhoria', 'Meta Próximo Dia', 'Etapa Funil Foco'].join(','),
                   ...resultadoPesquisa.map(reg => [
                     formatDate(reg.data),
                     reg.diaSemana,
@@ -187,6 +209,14 @@ export default function RegistrosDiariosPage() {
                     reg.desqualificados ? 'Sim' : 'Não',
                     reg.numeroFormularios,
                     reg.numeroOnlines,
+                    reg.callsAgendadas ?? '',
+                    reg.callsRealizadas ?? '',
+                    reg.testesVocacionais ?? '',
+                    reg.diagnosticos ?? '',
+                    (reg.avaliacaoPerformance ?? '').replace(/"/g, '""'),
+                    (reg.sugestaoMelhoria ?? '').replace(/"/g, '""'),
+                    (reg.metaProximoDia ?? '').replace(/"/g, '""'),
+                    (reg.etapaFunilFoco ?? '').replace(/"/g, '""'),
                   ].join(','))
                 ].join('\n');
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -216,18 +246,26 @@ export default function RegistrosDiariosPage() {
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Desqualificados</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Formulários</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Onlines</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Calls Agendadas</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Calls Realizadas</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Testes Voc.</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Diagnósticos</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Aval. Performance</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Sugestão Melhoria</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Meta Próx. Dia</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Etapa Funil Foco</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-blue-500/30">
               {!pesquisaExecutada ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-gray-400">
-                    Defina os filtros e clique em Pesquisar para carregar os dados da planilha.
+                  <td colSpan={17} className="px-6 py-12 text-center text-gray-400">
+                    Carregando dados...
                   </td>
                 </tr>
               ) : paginatedRegistros.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={17} className="px-6 py-12 text-center text-gray-400">
                     Nenhum registro encontrado para os filtros aplicados.
                   </td>
                 </tr>
@@ -245,6 +283,14 @@ export default function RegistrosDiariosPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.numeroFormularios}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.numeroOnlines}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.callsAgendadas ?? '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.callsRealizadas ?? '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.testesVocacionais ?? '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.diagnosticos ?? '-'}</td>
+                    <td className="px-6 py-4 text-white max-w-[200px] truncate" title={reg.avaliacaoPerformance ?? ''}>{reg.avaliacaoPerformance ?? '-'}</td>
+                    <td className="px-6 py-4 text-white max-w-[200px] truncate" title={reg.sugestaoMelhoria ?? ''}>{reg.sugestaoMelhoria ?? '-'}</td>
+                    <td className="px-6 py-4 text-white max-w-[200px] truncate" title={reg.metaProximoDia ?? ''}>{reg.metaProximoDia ?? '-'}</td>
+                    <td className="px-6 py-4 text-white max-w-[200px] truncate" title={reg.etapaFunilFoco ?? ''}>{reg.etapaFunilFoco ?? '-'}</td>
                   </tr>
                 ))
               )}

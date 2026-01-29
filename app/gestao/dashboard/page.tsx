@@ -16,9 +16,17 @@ export default function GestaoDashboardPage() {
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao11[]>([]);
   const [registrosDiarios, setRegistrosDiarios] = useState<RegistroDiario[]>([]);
   const [loading, setLoading] = useState(true);
+  // Filtro padrão: mês atual ao abrir o relatório
   const [filterVendedor, setFilterVendedor] = useState<string>('');
-  const [filterDataInicio, setFilterDataInicio] = useState<string>('');
-  const [filterDataFim, setFilterDataFim] = useState<string>('');
+  const [filterDataInicio, setFilterDataInicio] = useState<string>(() => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  const [filterDataFim, setFilterDataFim] = useState<string>(() => {
+    const n = new Date();
+    const ultimoDia = new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate();
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
+  });
   const [filterDiaSemana, setFilterDiaSemana] = useState<string>('');
 
   useEffect(() => {

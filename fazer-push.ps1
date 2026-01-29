@@ -8,6 +8,6 @@ if (Test-Path ".git/index.lock") {
 }
 git add -A
 git status
-git commit -m "Dashboard Executivo: filtros (Vendedor, Dia da Semana, Periodo) e fallback de dados ao carregar"
+git commit -m "Filtro padrao mes atual; Registros Diarios pesquisa ao abrir e todas as colunas na tabela/CSV"
 git push origin main
 Write-Host "Push concluido com sucesso." -ForegroundColor Green
