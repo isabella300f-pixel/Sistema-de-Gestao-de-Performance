@@ -454,7 +454,8 @@ function gerarDadosPlanilhaCompleta(): Array<{ data: string; diaSemana: string; 
     { data: '2025-08-01', diaSemana: 'Sexta', vendedor: 'THIAGO CASTRO', ligacoes: 73, atendidas: 7, aberturas: 4, desqualificados: 2, formularios: 2, onlines: 2 },
     { data: '2025-08-02', diaSemana: 'Sábado', vendedor: 'GUILHERME MACHADO', ligacoes: 103, atendidas: 11, aberturas: 4, desqualificados: 4, formularios: 2, onlines: 2 },
   ];
-  const resultado = [...base];
+  type ItemPlanilha = { data: string; diaSemana: string; vendedor: string; ligacoes: number; atendidas: number; aberturas: number; desqualificados: number; formularios: number; onlines: number; callsAgendadas?: number; callsRealizadas?: number };
+  const resultado: ItemPlanilha[] = [...base];
   // Gerar dados de ago/2025 a jan/2026 (todos os períodos da planilha) - determinístico
   const inicio = new Date('2025-08-03');
   const fim = new Date('2026-01-28');
