@@ -28,6 +28,26 @@ export default function GestaoDashboardPage() {
     return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
   });
   const [filterDiaSemana, setFilterDiaSemana] = useState<string>('');
+  // Valor da métrica a avaliar nos gráficos (ligações, atendidas, aberturas, etc.)
+  const METRICAS_OPCOES: { value: keyof RegistroDiario; label: string }[] = [
+    { value: 'numeroLigacoes', label: 'Ligações' },
+    { value: 'ligacoesAtendidas', label: 'Atendidas' },
+    { value: 'numeroAberturas', label: 'Aberturas' },
+    { value: 'numeroFormularios', label: 'Formulários' },
+    { value: 'numeroOnlines', label: 'Onlines' },
+    { value: 'callsAgendadas', label: 'Calls Agendadas' },
+    { value: 'callsRealizadas', label: 'Calls Realizadas' },
+  ];
+  const [filterValorMetrica, setFilterValorMetrica] = useState<keyof RegistroDiario>('numeroLigacoes');
+  const getValorMetrica = (r: RegistroDiario): number => {
+    const v = r[filterValorMetrica];
+    if (typeof v === 'number') return v;
+    return 0;
+  };
+  const labelMetricaSelecionada = METRICAS_OPCOES.find(m => m.value === filterValorMetrica)?.label ?? 'Ligações';
+  // Gráfico comparativo de semanas: vendedor + semanas a comparar (segunda a domingo)
+  const [chartComparativoVendedor, setChartComparativoVendedor] = useState<string>('');
+  const [chartComparativoSemanas, setChartComparativoSemanas] = useState<string[]>([]);
 
   useEffect(() => {
     const currentUserStr = localStorage.getItem('currentUser');
@@ -209,84 +229,102 @@ export default function GestaoDashboardPage() {
   // Conv Calls Realizadas = % das calls agendadas que foram realizadas
   const convCallsRealizadas = totalCallsAgendadas > 0 ? ((totalCallsRealizadas / totalCallsAgendadas) * 100).toFixed(2) : '0.00';
 
-  // Preparar dados para gráfico de linha por vendedor (usando dados filtrados)
+  // Preparar dados para gráfico de linha por vendedor (usando métrica selecionada)
   const registrosPorVendedor = colaboradores.map(col => {
     const regsColab = registrosFiltrados.filter(r => r.colaboradorId === col.id);
-    const totalPorVendedor = regsColab.reduce((sum, r) => sum + r.numeroLigacoes, 0);
+    const totalPorVendedor = regsColab.reduce((sum, r) => sum + getValorMetrica(r), 0);
     return {
       vendedor: col.name,
       total: totalPorVendedor,
     };
   }).sort((a, b) => b.total - a.total).slice(0, 10);
 
-  // Preparar dados para gráfico de linha temporal (dados filtrados)
+  // Preparar dados para gráfico de linha temporal (métrica selecionada)
   const registrosPorData = registrosFiltrados.reduce((acc, reg) => {
     const data = reg.data;
     if (!acc[data]) {
       acc[data] = { data, total: 0 };
     }
-    acc[data].total += reg.numeroLigacoes;
+    acc[data].total += getValorMetrica(reg);
     return acc;
   }, {} as Record<string, { data: string; total: number }>);
 
   const chartDataTemporal = Object.values(registrosPorData)
     .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime())
-    .slice(-90); // Últimos 90 dias (todos os períodos disponíveis quando há menos datas)
+    .slice(-90);
 
-  // Preparar dados para gráfico de linha por vendedor (múltiplas séries, dados filtrados)
+  // Preparar dados para gráfico de linha por vendedor (múltiplas séries, métrica selecionada)
   const topVendedores = colaboradores.map(col => {
     const regsColab = registrosFiltrados.filter(r => r.colaboradorId === col.id);
-    const total = regsColab.reduce((sum, r) => sum + r.numeroLigacoes, 0);
+    const total = regsColab.reduce((sum, r) => sum + getValorMetrica(r), 0);
     return { col, total, regs: regsColab };
   }).sort((a, b) => b.total - a.total).slice(0, 4);
 
-  // Preparar dados para gráfico de barras empilhadas por dia da semana
+  // Preparar dados para gráfico de barras empilhadas por dia da semana (métrica selecionada)
   const chartDataPorDiaSemana = diasSemana.map(dia => {
     const item: any = { dia };
     topVendedores.forEach(({ col }) => {
       const regs = registrosFiltrados.filter(r => r.colaboradorId === col.id && r.diaSemana === dia);
-      const total = regs.reduce((sum, r) => sum + r.numeroLigacoes, 0);
+      const total = regs.reduce((sum, r) => sum + getValorMetrica(r), 0);
       item[col.name.split(' ').slice(0, 2).join(' ')] = total;
     });
     return item;
   }).filter(d => Object.values(d).some((v: any) => typeof v === 'number' && v > 0));
 
-  // Preparar dados para gráfico de rosca (distribuição de ligações por vendedor, dados filtrados)
+  // Preparar dados para gráfico de rosca (métrica selecionada por vendedor)
   const distribLigacoesPorVendedor = colaboradores.map(col => {
     const regsColab = registrosFiltrados.filter(r => r.colaboradorId === col.id);
-    const total = regsColab.reduce((sum, r) => sum + r.numeroLigacoes, 0);
+    const total = regsColab.reduce((sum, r) => sum + getValorMetrica(r), 0);
     return {
       name: col.name.split(' ').slice(0, 2).join(' '),
       value: total
     };
   }).filter(d => d.value > 0).sort((a, b) => b.value - a.value).slice(0, 8);
 
-  // Preparar dados para tabela de calor semanal (dados filtrados)
-  const registrosPorSemana = registrosFiltrados.reduce((acc, reg) => {
-    const data = new Date(reg.data);
-    const semana = `Semana ${Math.ceil(data.getDate() / 7)}`;
-    const colab = colaboradores.find(c => c.id === reg.colaboradorId);
-    const nome = colab?.name || 'Outro';
-    
-    if (!acc[semana]) {
-      acc[semana] = {};
-    }
-    if (!acc[semana][nome]) {
-      acc[semana][nome] = 0;
-    }
-    acc[semana][nome] += reg.numeroLigacoes;
-    return acc;
-  }, {} as Record<string, Record<string, number>>);
+  // Semanas no formato segunda a domingo (Monday = início da semana)
+  const getMonday = (d: Date): string => {
+    const date = new Date(d);
+    const day = date.getDay(); // 0=dom, 1=seg, ...
+    const diff = day === 0 ? 6 : day - 1;
+    date.setDate(date.getDate() - diff);
+    return date.toISOString().slice(0, 10);
+  };
+  const formatDDMM = (s: string) => {
+    const [y, m, d] = s.split('-').map(Number);
+    return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`;
+  };
+  const addDays = (dateStr: string, days: number): string => {
+    const d = new Date(dateStr);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().slice(0, 10);
+  };
 
-  const tabelaCalor = Object.entries(registrosPorSemana).map(([semana, vendedores]) => {
-    const total = Object.values(vendedores).reduce((sum, val) => sum + val, 0);
-    return {
-      semana,
-      vendedor: Object.keys(vendedores)[0] || 'N/A',
-      valor: total,
-      detalhes: vendedores
-    };
-  }).sort((a, b) => a.semana.localeCompare(b.semana));
+  const diasSemanaChart = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
+  const semanasUnicas = Array.from(
+    new Set(registrosFiltrados.map(r => getMonday(new Date(r.data))))
+  ).sort();
+  const semanasComLabels: { key: string; label: string }[] = semanasUnicas.map((key, i) => {
+    const seg = key;
+    const dom = addDays(key, 6);
+    return { key, label: `Semana ${i + 1} (${formatDDMM(seg)} - ${formatDDMM(dom)})` };
+  });
+
+  // Dados do gráfico de linha: comparar semanas por vendedor (métrica selecionada por dia da semana)
+  const chartDataComparativo = (() => {
+    if (!chartComparativoVendedor || chartComparativoSemanas.length === 0) return [];
+    return diasSemanaChart.map((dia, idx) => {
+      const point: Record<string, string | number> = { dia };
+      chartComparativoSemanas.forEach((weekKey) => {
+        const weekLabel = semanasComLabels.find(s => s.key === weekKey)?.label ?? weekKey;
+        const dateStr = addDays(weekKey, idx);
+        const total = registrosFiltrados
+          .filter(r => r.colaboradorId === chartComparativoVendedor && r.data === dateStr)
+          .reduce((s, r) => s + getValorMetrica(r), 0);
+        point[weekLabel] = total;
+      });
+      return point;
+    });
+  })();
 
   if (loading) {
     return <div className="text-center py-12">Carregando...</div>;
@@ -302,7 +340,19 @@ export default function GestaoDashboardPage() {
       {/* Filtros */}
       <div className="card-white p-6">
         <h2 className="text-sm font-semibold text-gray-300 mb-4">Filtros</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Valor da métrica</label>
+            <select
+              value={filterValorMetrica}
+              onChange={(e) => setFilterValorMetrica(e.target.value as keyof RegistroDiario)}
+              className="w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              {METRICAS_OPCOES.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
+            </select>
+          </div>
           <div>
             <label className="block text-xs text-gray-400 mb-1">Vendedor</label>
             <select
@@ -351,6 +401,7 @@ export default function GestaoDashboardPage() {
             <button
               type="button"
               onClick={() => {
+                setFilterValorMetrica('numeroLigacoes');
                 setFilterVendedor('');
                 setFilterDiaSemana('');
                 setFilterDataInicio('');
@@ -437,7 +488,7 @@ export default function GestaoDashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Gráfico de linha temporal com múltiplas séries por vendedor */}
         <div className="card-white p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Valor da Métrica Total por Vendedor</h2>
+          <h2 className="text-lg font-semibold text-white mb-4">Valor da Métrica ({labelMetricaSelecionada}) Total por Vendedor</h2>
           <ResponsiveContainer width="100%" height={350}>
             <LineChart data={(() => {
               const datas = Array.from(new Set(registrosFiltrados.map(r => r.data))).sort();
@@ -484,7 +535,7 @@ export default function GestaoDashboardPage() {
 
         {/* Gráfico de barras empilhadas por dia da semana */}
         <div className="card-white p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Valor da Métrica por Dia por Vendedor</h2>
+          <h2 className="text-lg font-semibold text-white mb-4">Valor da Métrica ({labelMetricaSelecionada}) por Dia por Vendedor</h2>
           <ResponsiveContainer width="100%" height={350}>
             <BarChart data={chartDataPorDiaSemana}>
               <CartesianGrid strokeDasharray="3 3" stroke="#3B82F6" opacity={0.3} />
@@ -518,7 +569,7 @@ export default function GestaoDashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Gráfico de rosca - Distribuição de ligações por vendedor */}
         <div className="card-white p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Call Realizadas por Vendedor</h2>
+          <h2 className="text-lg font-semibold text-white mb-4">{labelMetricaSelecionada} por Vendedor</h2>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -546,7 +597,7 @@ export default function GestaoDashboardPage() {
 
         {/* Gráfico de área - Evolução temporal */}
         <div className="card-white p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Evolução de Ligações ao Longo do Tempo</h2>
+          <h2 className="text-lg font-semibold text-white mb-4">Evolução de {labelMetricaSelecionada} ao Longo do Tempo</h2>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={chartDataTemporal}>
               <defs>
@@ -575,41 +626,83 @@ export default function GestaoDashboardPage() {
         </div>
       </div>
 
-      {/* Tabela de Calor Semanal */}
-      <div className="card-white">
-        <div className="card-white-header">
-          <h2 className="text-lg font-semibold text-white">Tabela de Calor da Métrica por Semana</h2>
+      {/* Gráfico comparativo de semanas por vendedor (segunda a domingo) */}
+      <div className="card-white p-6">
+        <h2 className="text-lg font-semibold text-white mb-4">Comparativo de semanas por vendedor</h2>
+        <p className="text-sm text-gray-400 mb-4">Compare a métrica ({labelMetricaSelecionada}) do vendedor entre semanas. Cada semana é de segunda a domingo.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div>
+            <label className="block text-xs text-gray-400 mb-1">Vendedor</label>
+            <select
+              value={chartComparativoVendedor}
+              onChange={(e) => setChartComparativoVendedor(e.target.value)}
+              className="w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Selecione o vendedor</option>
+              {colaboradores.map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div className="md:col-span-2 lg:col-span-3">
+            <label className="block text-xs text-gray-400 mb-1">Semanas a comparar (Data = segunda a domingo)</label>
+            <div className="flex flex-wrap gap-2">
+              {semanasComLabels.map((s) => (
+                <label key={s.key} className="inline-flex items-center gap-2 px-3 py-2 bg-gray-800 border border-blue-500/50 rounded-md cursor-pointer hover:bg-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={chartComparativoSemanas.includes(s.key)}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setChartComparativoSemanas(prev => [...prev, s.key].sort());
+                      } else {
+                        setChartComparativoSemanas(prev => prev.filter(k => k !== s.key));
+                      }
+                    }}
+                    className="rounded border-gray-500 text-blue-500 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-white">{s.label}</span>
+                </label>
+              ))}
+              {semanasComLabels.length === 0 && (
+                <span className="text-sm text-gray-500">Nenhuma semana nos dados filtrados</span>
+              )}
+            </div>
+          </div>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-blue-500/30">
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Vendedor</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Data (Semana)</th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Valor da Métrica</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-blue-500/30">
-              {tabelaCalor.slice(0, 20).map((item, index) => {
-                const maxValor = Math.max(...tabelaCalor.map(t => t.valor));
-                const intensidade = item.valor / maxValor;
-                const bgColor = `rgba(59, 130, 246, ${0.3 + intensidade * 0.7})`;
+        {chartComparativoVendedor && chartComparativoSemanas.length > 0 && chartDataComparativo.length > 0 && (
+          <ResponsiveContainer width="100%" height={350}>
+            <LineChart data={chartDataComparativo}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#3B82F6" opacity={0.3} />
+              <XAxis dataKey="dia" tick={{ fill: '#fff', fontSize: 12 }} />
+              <YAxis tick={{ fill: '#fff' }} />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #3B82F6', color: '#fff' }}
+                labelStyle={{ color: '#fff' }}
+              />
+              <Legend wrapperStyle={{ color: '#fff', fontSize: '12px' }} />
+              {chartComparativoSemanas.map((weekKey, index) => {
+                const label = semanasComLabels.find(s => s.key === weekKey)?.label ?? weekKey;
+                const cores = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
                 return (
-                  <tr key={index} className="hover:bg-gray-800/50">
-                    <td className="px-6 py-4 whitespace-nowrap text-white">{item.vendedor}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-white">{item.semana}</td>
-                    <td 
-                      className="px-6 py-4 whitespace-nowrap text-right text-white font-semibold"
-                      style={{ backgroundColor: bgColor }}
-                    >
-                      {item.valor}
-                    </td>
-                  </tr>
+                  <Line
+                    key={weekKey}
+                    type="monotone"
+                    dataKey={label}
+                    stroke={cores[index % cores.length]}
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                  />
                 );
               })}
-            </tbody>
-          </table>
-        </div>
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+        {(!chartComparativoVendedor || chartComparativoSemanas.length === 0) && (
+          <div className="py-12 text-center text-gray-400">
+            Selecione um vendedor e pelo menos uma semana para exibir o gráfico.
+          </div>
+        )}
       </div>
 
       {/* Cards de resumo */}
