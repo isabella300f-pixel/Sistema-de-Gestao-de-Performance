@@ -518,7 +518,7 @@ export default function GestaoDashboardPage() {
                     type="button"
                     onClick={() => setDataInicioViewMonth(format(subMonths(parseAnoMesLocal(dataInicioViewMonth), 1), 'yyyy-MM'))}
                     className="p-1 text-white hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={datasPlanilha.min && format(subMonths(parseAnoMesLocal(dataInicioViewMonth), 1), 'yyyy-MM') < datasPlanilha.min.slice(0, 7)}
+                    disabled={!!(datasPlanilha.min && format(subMonths(parseAnoMesLocal(dataInicioViewMonth), 1), 'yyyy-MM') < datasPlanilha.min.slice(0, 7))}
                   >
                     <ChevronLeft size={20} />
                   </button>
@@ -529,7 +529,7 @@ export default function GestaoDashboardPage() {
                     type="button"
                     onClick={() => setDataInicioViewMonth(format(addMonths(parseAnoMesLocal(dataInicioViewMonth), 1), 'yyyy-MM'))}
                     className="p-1 text-white hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={datasPlanilha.max && format(addMonths(parseAnoMesLocal(dataInicioViewMonth), 1), 'yyyy-MM') > datasPlanilha.max.slice(0, 7)}
+                    disabled={!!(datasPlanilha.max && format(addMonths(parseAnoMesLocal(dataInicioViewMonth), 1), 'yyyy-MM') > datasPlanilha.max.slice(0, 7))}
                   >
                     <ChevronRight size={20} />
                   </button>
@@ -567,7 +567,7 @@ export default function GestaoDashboardPage() {
                       if (permitido) { setFilterDataInicio(h); setDataInicioViewMonth(h.slice(0, 7)); setDataInicioPickerAberto(false); }
                     }}
                     className="text-sm text-blue-400 hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={datasPlanilha.min && format(new Date(), 'yyyy-MM-dd') < datasPlanilha.min || (datasPlanilha.max && format(new Date(), 'yyyy-MM-dd') > datasPlanilha.max)}
+                    disabled={!!(datasPlanilha.min && format(new Date(), 'yyyy-MM-dd') < datasPlanilha.min || (datasPlanilha.max && format(new Date(), 'yyyy-MM-dd') > datasPlanilha.max))}
                   >
                     Hoje
                   </button>
@@ -594,7 +594,7 @@ export default function GestaoDashboardPage() {
                     type="button"
                     onClick={() => setDataFimViewMonth(format(subMonths(parseAnoMesLocal(dataFimViewMonth), 1), 'yyyy-MM'))}
                     className="p-1 text-white hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={datasPlanilha.min && format(subMonths(parseAnoMesLocal(dataFimViewMonth), 1), 'yyyy-MM') < datasPlanilha.min.slice(0, 7)}
+                    disabled={!!(datasPlanilha.min && format(subMonths(parseAnoMesLocal(dataFimViewMonth), 1), 'yyyy-MM') < datasPlanilha.min.slice(0, 7))}
                   >
                     <ChevronLeft size={20} />
                   </button>
@@ -605,7 +605,7 @@ export default function GestaoDashboardPage() {
                     type="button"
                     onClick={() => setDataFimViewMonth(format(addMonths(parseAnoMesLocal(dataFimViewMonth), 1), 'yyyy-MM'))}
                     className="p-1 text-white hover:bg-gray-700 rounded disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={datasPlanilha.max && format(addMonths(parseAnoMesLocal(dataFimViewMonth), 1), 'yyyy-MM') > datasPlanilha.max.slice(0, 7)}
+                    disabled={!!(datasPlanilha.max && format(addMonths(parseAnoMesLocal(dataFimViewMonth), 1), 'yyyy-MM') > datasPlanilha.max.slice(0, 7))}
                   >
                     <ChevronRight size={20} />
                   </button>
@@ -643,7 +643,7 @@ export default function GestaoDashboardPage() {
                       if (permitido) { setFilterDataFim(h); setDataFimViewMonth(h.slice(0, 7)); setDataFimPickerAberto(false); }
                     }}
                     className="text-sm text-blue-400 hover:text-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                    disabled={datasPlanilha.min && format(new Date(), 'yyyy-MM-dd') < datasPlanilha.min || (datasPlanilha.max && format(new Date(), 'yyyy-MM-dd') > datasPlanilha.max)}
+                    disabled={!!(datasPlanilha.min && format(new Date(), 'yyyy-MM-dd') < datasPlanilha.min || (datasPlanilha.max && format(new Date(), 'yyyy-MM-dd') > datasPlanilha.max))}
                   >
                     Hoje
                   </button>
