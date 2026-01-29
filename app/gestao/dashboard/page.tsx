@@ -374,7 +374,6 @@ export default function GestaoDashboardPage() {
               <span className="text-2xl font-bold text-white">{totalLigacoes.toLocaleString('pt-BR')}</span>
             </div>
             <p className="text-sm text-gray-300">Ligações</p>
-            <p className="text-sm font-semibold text-white mt-1">Atendidas: {totalAtendidas.toLocaleString('pt-BR')}</p>
           </div>
           <div className="card-white p-4 border border-blue-500/50">
             <div className="flex items-center justify-between mb-2">
@@ -382,7 +381,7 @@ export default function GestaoDashboardPage() {
               <span className="text-2xl font-bold text-white">{totalAtendidas.toLocaleString('pt-BR')}</span>
             </div>
             <p className="text-sm text-gray-300">Atendidas</p>
-            <p className="text-sm font-semibold text-white mt-1">Aberturas: {totalAberturas.toLocaleString('pt-BR')}</p>
+            <p className="text-xs text-gray-400 mt-1">Conv Atendidas: {convAtendidas}%</p>
           </div>
           <div className="card-white p-4 border border-blue-500/50">
             <div className="flex items-center justify-between mb-2">
@@ -390,7 +389,7 @@ export default function GestaoDashboardPage() {
               <span className="text-2xl font-bold text-white">{totalAberturas.toLocaleString('pt-BR')}</span>
             </div>
             <p className="text-sm text-gray-300">Aberturas</p>
-            <p className="text-sm font-semibold text-white mt-1">Formulários: {totalFormularios.toLocaleString('pt-BR')}</p>
+            <p className="text-xs text-gray-400 mt-1">Conv Aberturas: {convAberturas}%</p>
           </div>
           <div className="card-white p-4 border border-blue-500/50">
             <div className="flex items-center justify-between mb-2">
@@ -398,7 +397,7 @@ export default function GestaoDashboardPage() {
               <span className="text-2xl font-bold text-white">{totalFormularios.toLocaleString('pt-BR')}</span>
             </div>
             <p className="text-sm text-gray-300">Formulários</p>
-            <p className="text-sm font-semibold text-white mt-1">Onlines: {totalOnlines.toLocaleString('pt-BR')}</p>
+            <p className="text-xs text-gray-400 mt-1">Conv Formulários: {convFormularios}%</p>
           </div>
           <div className="card-white p-4 border border-blue-500/50">
             <div className="flex items-center justify-between mb-2">
@@ -406,7 +405,7 @@ export default function GestaoDashboardPage() {
               <span className="text-2xl font-bold text-white">{totalOnlines.toLocaleString('pt-BR')}</span>
             </div>
             <p className="text-sm text-gray-300">Onlines</p>
-            <p className="text-sm font-semibold text-white mt-1">Calls Agendadas: {totalCallsAgendadas.toLocaleString('pt-BR')}</p>
+            <p className="text-xs text-gray-400 mt-1">Conv Onlines: {convOnlines}%</p>
           </div>
           <div className="card-white p-4 border border-blue-500/50">
             <div className="flex items-center justify-between mb-2">
@@ -414,7 +413,7 @@ export default function GestaoDashboardPage() {
               <span className="text-2xl font-bold text-white">{totalCallsAgendadas.toLocaleString('pt-BR')}</span>
             </div>
             <p className="text-sm text-gray-300">Calls Agendadas</p>
-            <p className="text-sm font-semibold text-white mt-1">Calls Realizadas: {totalCallsRealizadas.toLocaleString('pt-BR')}</p>
+            <p className="text-xs text-gray-400 mt-1">Conv Calls Agend.: {convCallsAgendadas}%</p>
           </div>
           <div className="card-white p-4 border border-blue-500/50">
             <div className="flex items-center justify-between mb-2">
@@ -422,6 +421,7 @@ export default function GestaoDashboardPage() {
               <span className="text-2xl font-bold text-white">{totalCallsRealizadas.toLocaleString('pt-BR')}</span>
             </div>
             <p className="text-sm text-gray-300">Calls Realizadas</p>
+            <p className="text-xs text-gray-400 mt-1">Conv Realizadas: {convCallsRealizadas}%</p>
           </div>
           <div className="card-white p-4 border border-blue-500/50">
             <div className="flex items-center justify-between mb-2">
