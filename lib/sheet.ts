@@ -31,7 +31,7 @@ const HEADER_ALIASES: Record<string, keyof SheetRowRaw> = {
   vendedor: 'vendedor',
   ligações: 'ligacoes',
   ligacoes: 'ligacoes',
-  ligacoes total: 'ligacoes',
+  'ligacoes total': 'ligacoes',
   atendidas: 'atendidas',
   aberturas: 'aberturas',
   desqualificados: 'desqualificados',
