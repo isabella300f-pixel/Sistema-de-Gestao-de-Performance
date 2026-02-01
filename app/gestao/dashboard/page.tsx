@@ -264,13 +264,12 @@ export default function GestaoDashboardPage() {
     if (filterVendedor) {
       list = list.filter(r => r.colaboradorId === filterVendedor);
     }
+    // Comparação por string YYYY-MM-DD para evitar bugs de timezone
     if (filterDataInicio) {
-      const inicio = new Date(filterDataInicio);
-      list = list.filter(r => new Date(r.data) >= inicio);
+      list = list.filter(r => r.data >= filterDataInicio);
     }
     if (filterDataFim) {
-      const fim = new Date(filterDataFim);
-      list = list.filter(r => new Date(r.data) <= fim);
+      list = list.filter(r => r.data <= filterDataFim);
     }
     if (filterDiaSemana) {
       list = list.filter(r => r.diaSemana === filterDiaSemana);

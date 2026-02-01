@@ -625,14 +625,15 @@ export function pesquisarRegistrosDiarios(filtros: FiltroRegistrosDiarios): Regi
     resultado = resultado.filter(r => r.colaboradorId === filtros.colaboradorId);
   }
 
+  // Comparação por string YYYY-MM-DD para evitar bugs de timezone
   if (filtros.dataInicio) {
-    const inicio = new Date(filtros.dataInicio);
-    resultado = resultado.filter(r => new Date(r.data) >= inicio);
+    const inicio = filtros.dataInicio;
+    resultado = resultado.filter(r => r.data >= inicio);
   }
 
   if (filtros.dataFim) {
-    const fim = new Date(filtros.dataFim);
-    resultado = resultado.filter(r => new Date(r.data) <= fim);
+    const fim = filtros.dataFim;
+    resultado = resultado.filter(r => r.data <= fim);
   }
 
   if (filtros.diaSemana) {
@@ -685,6 +686,7 @@ export function getColaboradorIdByName(nome: string): string | null {
     'FELIPE JOSE BAEZI LAGES': 'colab-5',
     // 'DANILO MIRAN' e 'DANILO MIRANDA' não são colaboradores - serão ignorados
     'DAIANE MOREI': 'colab-9',
+    'DAIANE MOREIRA': 'colab-9',
     'DAIANE DA SILVA MOREIRA': 'colab-9',
     'LUIZ RIBEIRO': 'colab-13',
     'LUIZ HENRIQUE RIBEIRO DA SILVA': 'colab-13',

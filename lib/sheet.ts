@@ -11,6 +11,7 @@ export const SHEET_CSV_URL =
 
 export interface SheetRowRaw {
   data?: string;
+  carimbo?: string; // Carimbo de data/hora (fallback para data)
   diaSemana?: string;
   vendedor?: string;
   ligacoes?: number;
@@ -25,6 +26,8 @@ export interface SheetRowRaw {
 
 const HEADER_ALIASES: Record<string, keyof SheetRowRaw> = {
   data: 'data',
+  'carimbo de data/hora': 'carimbo',
+  'carimbo de data': 'carimbo',
   'dia da semana': 'diaSemana',
   'dia da semana ': 'diaSemana',
   diasemana: 'diaSemana',
@@ -32,13 +35,25 @@ const HEADER_ALIASES: Record<string, keyof SheetRowRaw> = {
   ligações: 'ligacoes',
   ligacoes: 'ligacoes',
   'ligacoes total': 'ligacoes',
+  'número de ligações': 'ligacoes',
+  'numero de ligacoes': 'ligacoes',
   atendidas: 'atendidas',
+  'número de ligações atendidas': 'atendidas',
+  'numero de ligacoes atendidas': 'atendidas',
   aberturas: 'aberturas',
+  'número de aberturas': 'aberturas',
+  'numero de aberturas': 'aberturas',
   desqualificados: 'desqualificados',
+  'algum desqualificado?': 'desqualificados',
+  'algum desqualificado': 'desqualificados',
   formulários: 'formularios',
   formularios: 'formularios',
   form: 'formularios',
+  'número de formulários': 'formularios',
+  'numero de formularios': 'formularios',
   onlines: 'onlines',
+  'número de onlines': 'onlines',
+  'numero de onlines': 'onlines',
   'calls agendadas': 'callsAgendadas',
   callsagendadas: 'callsAgendadas',
   'calls realizadas': 'callsRealizadas',
@@ -51,9 +66,22 @@ function parseNumber(val: string): number {
   return isNaN(n) ? 0 : n;
 }
 
+function parseDesqualificados(val: string): number {
+  const s = String(val ?? '').trim().toLowerCase();
+  if (s === 'sim' || s === 's' || s === 'yes' || s === '1' || s === 'true') return 1;
+  if (s === 'não' || s === 'nao' || s === 'n' || s === 'no' || s === '0' || s === 'false') return 0;
+  return parseNumber(val);
+}
+
 function parseDate(val: string): string {
   if (!val || typeof val !== 'string') return '';
   const s = val.trim();
+  // DD/MM/YYYY HH:MM:SS ou DD/MM/YYYY HH:MM -> YYYY-MM-DD (Carimbo de data/hora)
+  const ddmmyyyyHms = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+\d{1,2}:\d{1,2}(?::\d{1,2})?)?/);
+  if (ddmmyyyyHms) {
+    const [, d, m, y] = ddmmyyyyHms;
+    return `${y}-${m!.padStart(2, '0')}-${d!.padStart(2, '0')}`;
+  }
   // DD/MM/YYYY -> YYYY-MM-DD
   const ddmmyyyy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if (ddmmyyyy) {
@@ -80,7 +108,9 @@ export function parseSheetValuesFromApi(values: string[][]): SheetRowRaw[] {
       const val = row?.[idx] ?? '';
       const s = String(val).trim().replace(/^"|"$/g, '');
       if (key === 'data') obj[key] = parseDate(s);
-      else if (['ligacoes', 'atendidas', 'aberturas', 'desqualificados', 'formularios', 'onlines', 'callsAgendadas', 'callsRealizadas'].includes(key))
+      else if (key === 'carimbo') obj[key] = s;
+      else if (key === 'desqualificados') obj[key] = parseDesqualificados(s);
+      else if (['ligacoes', 'atendidas', 'aberturas', 'formularios', 'onlines', 'callsAgendadas', 'callsRealizadas'].includes(key))
         obj[key] = parseNumber(s);
       else obj[key] = s;
     });
@@ -113,11 +143,12 @@ export function parseSheetCSV(csv: string): SheetRowRaw[] {
       if (!key) return;
       const val = values[idx];
       if (key === 'data') row[key] = parseDate(val ?? '');
+      else if (key === 'carimbo') row[key] = (val ?? '').trim();
+      else if (key === 'desqualificados') row[key] = parseDesqualificados(val ?? '');
       else if (
         key === 'ligacoes' ||
         key === 'atendidas' ||
         key === 'aberturas' ||
-        key === 'desqualificados' ||
         key === 'formularios' ||
         key === 'onlines' ||
         key === 'callsAgendadas' ||
@@ -134,6 +165,12 @@ export function parseSheetCSV(csv: string): SheetRowRaw[] {
 function normalizeDate(val: string): string {
   if (!val || typeof val !== 'string') return '';
   const s = val.trim();
+  // DD/MM/YYYY HH:MM:SS
+  const ddmmyyyyHms = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+\d{1,2}:\d{1,2}(?::\d{1,2})?)?/);
+  if (ddmmyyyyHms) {
+    const [, d, m, y] = ddmmyyyyHms;
+    return `${y}-${m!.padStart(2, '0')}-${d!.padStart(2, '0')}`;
+  }
   const ddmmyyyy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if (ddmmyyyy) {
     const [, d, m, y] = ddmmyyyy;
@@ -141,6 +178,13 @@ function normalizeDate(val: string): string {
   }
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
   return s;
+}
+
+function extractDataFromRow(row: SheetRowRaw): string {
+  const dataVal = row.data ? normalizeDate(String(row.data)) : '';
+  if (dataVal) return dataVal;
+  const carimboVal = row.carimbo ? parseDate(String(row.carimbo)) : '';
+  return carimboVal;
 }
 
 /** Mapeia linhas da planilha para RegistroDiario (só inclui linhas com vendedor mapeado). */
@@ -155,7 +199,7 @@ export function mapSheetRowsToRegistros(
     if (!nome) continue;
     const colaboradorId = getColaboradorId(nome);
     if (!colaboradorId) continue;
-    const dataStr = row.data ? normalizeDate(String(row.data)) : '';
+    const dataStr = extractDataFromRow(row);
     if (!dataStr) continue;
     registros.push({
       id: `registro-${id++}`,
