@@ -38,7 +38,7 @@ export default function GestorDashboard() {
         setAvaliacoes(getAvaliacoes11ByGestor(gestor.id));
 
         try {
-          const res = await fetch('/api/sheet/registros-diarios', { cache: 'no-store' });
+          const res = await fetch(`/api/sheet/registros-diarios?_=${Date.now()}`, { cache: 'no-store' });
           const json = await res.json();
           if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
             const registros = mapSheetRowsToRegistros(json.data, getColaboradorIdByName);

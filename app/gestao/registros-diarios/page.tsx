@@ -50,7 +50,7 @@ export default function RegistrosDiariosPage() {
         // Sincronizar com a planilha publicada (ao carregar/atualizar a página)
         let dadosCarregados = false;
         try {
-          const res = await fetch('/api/sheet/registros-diarios', { cache: 'no-store' });
+          const res = await fetch(`/api/sheet/registros-diarios?_=${Date.now()}`, { cache: 'no-store' });
           const json = await res.json();
           if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
             const registros = mapSheetRowsToRegistros(json.data, getColaboradorIdByName);

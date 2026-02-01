@@ -135,7 +135,7 @@ export default function GestaoDashboardPage() {
         // Sincronizar com a planilha publicada (atualiza ao carregar/atualizar a página)
         let dadosFinais: RegistroDiario[] = [];
         try {
-          const res = await fetch('/api/sheet/registros-diarios', { cache: 'no-store' });
+          const res = await fetch(`/api/sheet/registros-diarios?_=${Date.now()}`, { cache: 'no-store' });
           const json = await res.json();
           if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
             const registros = mapSheetRowsToRegistros(json.data, getColaboradorIdByName);
