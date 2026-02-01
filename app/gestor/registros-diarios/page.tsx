@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { RegistroDiario, Colaborador } from '@/types';
-import { initializeRegistrosDiarios, getAllRegistrosDiarios, getColaboradoresByGestor, getUserById, pesquisarRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
+import { getAllRegistrosDiarios, getColaboradoresByGestor, getUserById, pesquisarRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
 import { mapSheetRowsToRegistros } from '@/lib/sheet';
 import { formatDate } from '@/lib/utils';
 import { Search, Download, ChevronLeft, ChevronRight, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
@@ -83,10 +83,10 @@ export default function GestorRegistrosDiariosPage() {
             }
           }
         } catch (_) {}
-        if (!dadosCarregados) initializeRegistrosDiarios();
+        if (!dadosCarregados) setRegistrosDiariosFromSheet([]);
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
-        initializeRegistrosDiarios();
+        setRegistrosDiariosFromSheet([]);
       } finally {
         setLoading(false);
       }
@@ -108,7 +108,7 @@ export default function GestorRegistrosDiariosPage() {
         }
       }
     } catch (_) {}
-    initializeRegistrosDiarios();
+    setRegistrosDiariosFromSheet([]);
     return false;
   };
 

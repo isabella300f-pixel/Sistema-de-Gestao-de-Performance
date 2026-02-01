@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Colaborador, Avaliacao11, IndicadoresColaborador, RegistroDiario } from '@/types';
-import { getAllColaboradores, getAllAvaliacoes11, getAllRegistrosDiarios, initializeRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
+import { getAllColaboradores, getAllAvaliacoes11, getAllRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
 import { mapSheetRowsToRegistros } from '@/lib/sheet';
 import { calculateScore } from '@/lib/utils';
 import { TrendingUp, TrendingDown, AlertTriangle, Users, Award, XCircle, Phone, PhoneCall, FileText, Globe, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
@@ -115,7 +115,6 @@ export default function GestaoDashboardPage() {
   const classeDropdownItem = 'flex items-center gap-2 px-4 py-2.5 hover:bg-gray-700 cursor-pointer text-sm text-white border-b border-gray-700/50 last:border-0';
 
   const carregarDadosPlanilha = async () => {
-    let dadosFinais: RegistroDiario[] = [];
     try {
       const bust = Date.now();
       const res = await fetch(`/api/sheet/registros-diarios?_=${bust}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
@@ -123,16 +122,14 @@ export default function GestaoDashboardPage() {
       if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
         const registros = mapSheetRowsToRegistros(json.data, getColaboradorIdByName);
         if (registros.length > 0) {
-          dadosFinais = registros;
           setRegistrosDiariosFromSheet(registros);
+          setRegistrosDiarios(registros);
+          return;
         }
       }
     } catch (_) {}
-    if (dadosFinais.length === 0) {
-      initializeRegistrosDiarios();
-      dadosFinais = getAllRegistrosDiarios();
-    }
-    setRegistrosDiarios(dadosFinais);
+    setRegistrosDiariosFromSheet([]);
+    setRegistrosDiarios([]);
   };
 
   useEffect(() => {
@@ -157,8 +154,8 @@ export default function GestaoDashboardPage() {
         await carregarDadosPlanilha();
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
-        initializeRegistrosDiarios();
-        setRegistrosDiarios(getAllRegistrosDiarios());
+        setRegistrosDiariosFromSheet([]);
+        setRegistrosDiarios([]);
       } finally {
         setLoading(false);
       }
@@ -411,7 +408,7 @@ export default function GestaoDashboardPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white">Dashboard Executivo</h1>
-          <p className="mt-2 text-gray-300">Visão geral de performance e indicadores — dados sincronizados com a planilha</p>
+          <p className="mt-2 text-gray-300">Visão geral de performance e indicadores — exibe apenas dados reais da planilha</p>
         </div>
         <button
           type="button"

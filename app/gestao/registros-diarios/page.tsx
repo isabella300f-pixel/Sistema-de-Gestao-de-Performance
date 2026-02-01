@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { RegistroDiario, Colaborador } from '@/types';
-import { getAllColaboradores, getAllRegistrosDiarios, initializeRegistrosDiarios, pesquisarRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
+import { getAllColaboradores, getAllRegistrosDiarios, pesquisarRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
 import { mapSheetRowsToRegistros } from '@/lib/sheet';
 import { formatDate } from '@/lib/utils';
 import { Search, Download, ChevronLeft, ChevronRight, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
@@ -82,10 +82,10 @@ export default function RegistrosDiariosPage() {
             }
           }
         } catch (_) {}
-        if (!dadosCarregados) initializeRegistrosDiarios();
+        if (!dadosCarregados) setRegistrosDiariosFromSheet([]);
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
-        initializeRegistrosDiarios();
+        setRegistrosDiariosFromSheet([]);
       } finally {
         setLoading(false);
       }
@@ -107,7 +107,7 @@ export default function RegistrosDiariosPage() {
         }
       }
     } catch (_) {}
-    initializeRegistrosDiarios();
+    setRegistrosDiariosFromSheet([]);
     return false;
   };
 
@@ -263,7 +263,7 @@ export default function RegistrosDiariosPage() {
         <div>
           <h1 className="text-3xl font-bold text-white">Registros Diários</h1>
           <p className="mt-2 text-gray-300">
-            Dados sincronizados com a planilha. Defina os filtros e clique em Pesquisar. Clique no cabeçalho da coluna para ordenar.
+            Exibe apenas dados reais da planilha. Defina os filtros e clique em Pesquisar. Se não houver dados, verifique se a planilha está publicada e clique em Atualizar dados.
           </p>
         </div>
         <button

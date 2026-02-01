@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Colaborador, Avaliacao11, RegistroDiario } from '@/types';
-import { getColaboradoresByGestor, getAvaliacoes11ByGestor, getUserById, getAllRegistrosDiarios, initializeRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
+import { getColaboradoresByGestor, getAvaliacoes11ByGestor, getUserById, getAllRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
 import { mapSheetRowsToRegistros } from '@/lib/sheet';
 import { formatDate, getDaysSince } from '@/lib/utils';
 import { AlertCircle, CheckCircle, Clock, Users, Phone, PhoneCall, FileText, Globe, TrendingUp } from 'lucide-react';
@@ -38,16 +38,20 @@ export default function GestorDashboard() {
         setAvaliacoes(getAvaliacoes11ByGestor(gestor.id));
 
         try {
-          const res = await fetch(`/api/sheet/registros-diarios?_=${Date.now()}`, { cache: 'no-store' });
+          const res = await fetch(`/api/sheet/registros-diarios?_=${Date.now()}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
           const json = await res.json();
           if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
             const registros = mapSheetRowsToRegistros(json.data, getColaboradorIdByName);
-            setRegistrosDiariosFromSheet(registros);
+            if (registros.length > 0) {
+              setRegistrosDiariosFromSheet(registros);
+            } else {
+              setRegistrosDiariosFromSheet([]);
+            }
           } else {
-            initializeRegistrosDiarios();
+            setRegistrosDiariosFromSheet([]);
           }
         } catch (_) {
-          initializeRegistrosDiarios();
+          setRegistrosDiariosFromSheet([]);
         }
         const registros = getAllRegistrosDiarios().filter(r =>
           cols.some(c => c.id === r.colaboradorId)
@@ -55,7 +59,7 @@ export default function GestorDashboard() {
         setRegistrosDiarios(registros);
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
-        initializeRegistrosDiarios();
+        setRegistrosDiariosFromSheet([]);
         try {
           const currentUser = JSON.parse(currentUserStr);
           const gestor = getUserById(currentUser.id);
@@ -63,9 +67,9 @@ export default function GestorDashboard() {
             const cols = getColaboradoresByGestor(gestor.id);
             setColaboradores(cols);
             setAvaliacoes(getAvaliacoes11ByGestor(gestor.id));
-            setRegistrosDiarios(getAllRegistrosDiarios().filter(r => cols.some(c => c.id === r.colaboradorId)));
           }
         } catch (_) {}
+        setRegistrosDiarios([]);
       } finally {
         setLoading(false);
       }
