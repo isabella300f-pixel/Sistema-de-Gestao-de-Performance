@@ -21,12 +21,13 @@ export default function GestorRegistrosDiariosPage() {
   const [filterVendedor, setFilterVendedor] = useState<string>('');
   const [filterDataInicio, setFilterDataInicio] = useState<string>(() => {
     const n = new Date();
-    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-01`;
+    const d = new Date(n);
+    d.setDate(d.getDate() - 29);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
   const [filterDataFim, setFilterDataFim] = useState<string>(() => {
     const n = new Date();
-    const ultimoDia = new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate();
-    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
+    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
   });
   const [filterDiaSemana, setFilterDiaSemana] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);

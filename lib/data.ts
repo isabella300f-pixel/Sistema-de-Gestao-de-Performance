@@ -459,7 +459,9 @@ function gerarDadosPlanilhaCompleta(): Array<{ data: string; diaSemana: string; 
   // Gerar dados de ago/2025 até hoje (fallback quando planilha indisponível) - determinístico
   const inicio = new Date('2025-08-03');
   const hoje = new Date();
-  const fim = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 7); // até 7 dias no futuro
+  const ontem = new Date(hoje);
+  ontem.setDate(ontem.getDate() - 1);
+  const fim = ontem; // apenas até ontem — nunca futuro nem hoje (evita dados inexistentes)
   const hash = (n: number) => ((n * 2654435761) % 2147483647);
   const variacao = (seed: number, min: number, max: number) => (hash(seed) % (max - min + 1)) + min;
   for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {
