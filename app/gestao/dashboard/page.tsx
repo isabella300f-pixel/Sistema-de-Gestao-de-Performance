@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Colaborador, Avaliacao11, IndicadoresColaborador, RegistroDiario } from '@/types';
-import { getAllColaboradores, getAllAvaliacoes11, getAllRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
+import { getAllColaboradores, getAllAvaliacoes11, getAllRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet, initializeRegistrosDiarios } from '@/lib/data';
 import { mapSheetRowsToRegistros } from '@/lib/sheet';
 import { calculateScore } from '@/lib/utils';
 import { TrendingUp, TrendingDown, AlertTriangle, Users, Award, XCircle, Phone, PhoneCall, FileText, Globe, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
@@ -19,6 +19,7 @@ export default function GestaoDashboardPage() {
   const [registrosDiarios, setRegistrosDiarios] = useState<RegistroDiario[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [dadosDaPlanilha, setDadosDaPlanilha] = useState(true); // true = dados reais, false = fallback exemplo
   // Filtro padrão: mês atual ao abrir o relatório
   const [filterVendedor, setFilterVendedor] = useState<string>('');
   const [filterDataInicio, setFilterDataInicio] = useState<string>(() => {
@@ -124,12 +125,14 @@ export default function GestaoDashboardPage() {
         if (registros.length > 0) {
           setRegistrosDiariosFromSheet(registros);
           setRegistrosDiarios(registros);
+          setDadosDaPlanilha(true);
           return;
         }
       }
     } catch (_) {}
-    setRegistrosDiariosFromSheet([]);
-    setRegistrosDiarios([]);
+    initializeRegistrosDiarios();
+    setRegistrosDiarios(getAllRegistrosDiarios());
+    setDadosDaPlanilha(false);
   };
 
   useEffect(() => {
@@ -154,8 +157,9 @@ export default function GestaoDashboardPage() {
         await carregarDadosPlanilha();
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
-        setRegistrosDiariosFromSheet([]);
-        setRegistrosDiarios([]);
+        initializeRegistrosDiarios();
+        setRegistrosDiarios(getAllRegistrosDiarios());
+        setDadosDaPlanilha(false);
       } finally {
         setLoading(false);
       }
@@ -408,7 +412,9 @@ export default function GestaoDashboardPage() {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-white">Dashboard Executivo</h1>
-          <p className="mt-2 text-gray-300">Visão geral de performance e indicadores — exibe apenas dados reais da planilha</p>
+          <p className="mt-2 text-gray-300">
+            {dadosDaPlanilha ? 'Dados da planilha carregados.' : 'Planilha indisponível — exibindo dados de exemplo. Publique a planilha e clique em Atualizar dados.'}
+          </p>
         </div>
         <button
           type="button"
