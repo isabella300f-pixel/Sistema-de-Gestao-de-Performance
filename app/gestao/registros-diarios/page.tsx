@@ -176,6 +176,8 @@ export default function RegistrosDiariosPage() {
     const colaborador = colaboradores.find(c => c.id === colaboradorId);
     return colaborador?.name || colaboradorId;
   };
+  const getVendedorDisplayName = (reg: RegistroDiario): string =>
+    reg.vendedorNome ?? getColaboradorName(reg.colaboradorId);
 
   const executarPesquisa = () => {
     const resultado = pesquisarRegistrosDiarios({
@@ -221,7 +223,7 @@ export default function RegistrosDiariosPage() {
   ];
 
   const getSortValue = (reg: RegistroDiario, key: string): string | number => {
-    if (key === 'vendedor') return getColaboradorName(reg.colaboradorId).toLowerCase();
+    if (key === 'vendedor') return getVendedorDisplayName(reg).toLowerCase();
     if (key === 'desqualificados') return reg.desqualificados ? 1 : 0;
     const v = (reg as unknown as Record<string, unknown>)[key];
     if (typeof v === 'number') return v;
@@ -441,7 +443,7 @@ export default function RegistrosDiariosPage() {
                   ...resultadoOrdenado.map(reg => [
                     formatDate(reg.data),
                     reg.diaSemana,
-                    getColaboradorName(reg.colaboradorId),
+                    getVendedorDisplayName(reg),
                     reg.numeroLigacoes,
                     reg.ligacoesAtendidas,
                     reg.numeroAberturas,
@@ -508,7 +510,7 @@ export default function RegistrosDiariosPage() {
                   <tr key={reg.id} className="hover:bg-gray-800/50">
                     <td className="px-6 py-4 whitespace-nowrap text-white">{formatDate(reg.data)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-white">{reg.diaSemana}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-white">{getColaboradorName(reg.colaboradorId)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-white">{getVendedorDisplayName(reg)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.numeroLigacoes}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.ligacoesAtendidas}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.numeroAberturas}</td>

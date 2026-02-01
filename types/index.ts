@@ -70,6 +70,8 @@ export interface RegistroDiario {
   sugestaoMelhoria?: string;
   metaProximoDia?: string;
   etapaFunilFoco?: string;
+  /** Nome do vendedor da planilha quando não mapeado em colaboradores */
+  vendedorNome?: string;
 }
 
 // Colaborador

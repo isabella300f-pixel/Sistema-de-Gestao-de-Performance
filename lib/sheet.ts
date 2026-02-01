@@ -187,7 +187,7 @@ function extractDataFromRow(row: SheetRowRaw): string {
   return carimboVal;
 }
 
-/** Mapeia linhas da planilha para RegistroDiario (só inclui linhas com vendedor mapeado). */
+/** Mapeia linhas da planilha para RegistroDiario. Inclui TODAS as linhas com vendedor e data válidos (vendedores não mapeados usam vendedorNome). */
 export function mapSheetRowsToRegistros(
   rows: SheetRowRaw[],
   getColaboradorId: (nome: string) => string | null
@@ -197,11 +197,10 @@ export function mapSheetRowsToRegistros(
   for (const row of rows) {
     const nome = (row.vendedor ?? '').trim();
     if (!nome) continue;
-    const colaboradorId = getColaboradorId(nome);
-    if (!colaboradorId) continue;
     const dataStr = extractDataFromRow(row);
     if (!dataStr) continue;
-    registros.push({
+    const colaboradorId = getColaboradorId(nome) ?? `sheet:${nome}`;
+    const reg: RegistroDiario = {
       id: `registro-${id++}`,
       colaboradorId,
       data: dataStr,
@@ -216,7 +215,9 @@ export function mapSheetRowsToRegistros(
       callsRealizadas: Number(row.callsRealizadas) || 0,
       testesVocacionais: 0,
       diagnosticos: 0,
-    } as RegistroDiario);
+    };
+    if (colaboradorId.startsWith('sheet:')) reg.vendedorNome = nome;
+    registros.push(reg);
   }
   return registros.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 }

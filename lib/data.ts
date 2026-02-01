@@ -644,7 +644,7 @@ export function pesquisarRegistrosDiarios(filtros: FiltroRegistrosDiarios): Regi
     const termo = filtros.termoBusca.toUpperCase().trim();
     resultado = resultado.filter(r => {
       const colab = colaboradores.find(c => c.id === r.colaboradorId);
-      const nome = colab?.name?.toUpperCase() ?? '';
+      const nome = (r.vendedorNome ?? colab?.name ?? '').toUpperCase();
       return (
         nome.includes(termo) ||
         r.diaSemana.toUpperCase().includes(termo) ||
