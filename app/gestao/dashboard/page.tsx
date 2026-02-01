@@ -7,7 +7,7 @@ import { Colaborador, Avaliacao11, IndicadoresColaborador, RegistroDiario } from
 import { getAllColaboradores, getAllAvaliacoes11, getAllRegistrosDiarios, initializeRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
 import { mapSheetRowsToRegistros } from '@/lib/sheet';
 import { calculateScore } from '@/lib/utils';
-import { TrendingUp, TrendingDown, AlertTriangle, Users, Award, XCircle, Phone, PhoneCall, FileText, Globe, ChevronLeft, ChevronRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Users, Award, XCircle, Phone, PhoneCall, FileText, Globe, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend, ComposedChart, Area, AreaChart } from 'recharts';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -18,6 +18,7 @@ export default function GestaoDashboardPage() {
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao11[]>([]);
   const [registrosDiarios, setRegistrosDiarios] = useState<RegistroDiario[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   // Filtro padrão: mês atual ao abrir o relatório
   const [filterVendedor, setFilterVendedor] = useState<string>('');
   const [filterDataInicio, setFilterDataInicio] = useState<string>(() => {
@@ -110,7 +111,29 @@ export default function GestaoDashboardPage() {
   })();
   const classeDropdownBtn = 'w-full px-4 py-2 bg-gray-800 border border-blue-500/50 rounded-md text-white text-left focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-between';
   const classeDropdownPanel = 'absolute z-10 mt-1 w-full rounded-md border border-blue-500/50 bg-gray-800 shadow-lg max-h-56 overflow-auto';
+  const classeDatePickerPanel = 'absolute z-10 mt-1 rounded-md border border-blue-500/50 bg-gray-800 shadow-lg p-3 min-w-[280px]';
   const classeDropdownItem = 'flex items-center gap-2 px-4 py-2.5 hover:bg-gray-700 cursor-pointer text-sm text-white border-b border-gray-700/50 last:border-0';
+
+  const carregarDadosPlanilha = async () => {
+    let dadosFinais: RegistroDiario[] = [];
+    try {
+      const bust = Date.now();
+      const res = await fetch(`/api/sheet/registros-diarios?_=${bust}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
+      const json = await res.json();
+      if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
+        const registros = mapSheetRowsToRegistros(json.data, getColaboradorIdByName);
+        if (registros.length > 0) {
+          dadosFinais = registros;
+          setRegistrosDiariosFromSheet(registros);
+        }
+      }
+    } catch (_) {}
+    if (dadosFinais.length === 0) {
+      initializeRegistrosDiarios();
+      dadosFinais = getAllRegistrosDiarios();
+    }
+    setRegistrosDiarios(dadosFinais);
+  };
 
   useEffect(() => {
     const currentUserStr = localStorage.getItem('currentUser');
@@ -131,27 +154,7 @@ export default function GestaoDashboardPage() {
         const avals = getAllAvaliacoes11();
         setColaboradores(cols);
         setAvaliacoes(avals);
-
-        // Sincronizar com a planilha publicada (atualiza ao carregar/atualizar a página)
-        let dadosFinais: RegistroDiario[] = [];
-        try {
-          const res = await fetch(`/api/sheet/registros-diarios?_=${Date.now()}`, { cache: 'no-store' });
-          const json = await res.json();
-          if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
-            const registros = mapSheetRowsToRegistros(json.data, getColaboradorIdByName);
-            if (registros.length > 0) {
-              dadosFinais = registros;
-              setRegistrosDiariosFromSheet(registros);
-            }
-          }
-        } catch (_) {
-          // segue para fallback
-        }
-        if (dadosFinais.length === 0) {
-          initializeRegistrosDiarios();
-          dadosFinais = getAllRegistrosDiarios();
-        }
-        setRegistrosDiarios(dadosFinais);
+        await carregarDadosPlanilha();
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
         initializeRegistrosDiarios();
@@ -163,6 +166,14 @@ export default function GestaoDashboardPage() {
 
     load();
   }, [router]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible' && !loading) carregarDadosPlanilha();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [loading]);
 
   const getIndicadores = (colaboradorId: string): IndicadoresColaborador => {
     const avalsColab = avaliacoes.filter(
@@ -398,9 +409,20 @@ export default function GestaoDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-white">Dashboard Executivo</h1>
-        <p className="mt-2 text-gray-300">Visão geral de performance e indicadores — dados sincronizados com a planilha ao carregar/atualizar a página</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-white">Dashboard Executivo</h1>
+          <p className="mt-2 text-gray-300">Visão geral de performance e indicadores — dados sincronizados com a planilha</p>
+        </div>
+        <button
+          type="button"
+          onClick={async () => { setRefreshing(true); await carregarDadosPlanilha(); setRefreshing(false); }}
+          disabled={refreshing || loading}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
+        >
+          <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
+          {refreshing ? 'Atualizando...' : 'Atualizar dados'}
+        </button>
       </div>
 
       {/* Filtros */}
@@ -512,7 +534,7 @@ export default function GestaoDashboardPage() {
               </svg>
             </button>
             {dataInicioPickerAberto && (
-              <div className={`${classeDropdownPanel} p-3 min-w-[280px]`}>
+              <div className={classeDatePickerPanel}>
                 <div className="flex items-center justify-between mb-3">
                   <button
                     type="button"
@@ -588,7 +610,7 @@ export default function GestaoDashboardPage() {
               </svg>
             </button>
             {dataFimPickerAberto && (
-              <div className={`${classeDropdownPanel} p-3 min-w-[280px]`}>
+              <div className={classeDatePickerPanel}>
                 <div className="flex items-center justify-between mb-3">
                   <button
                     type="button"

@@ -456,9 +456,10 @@ function gerarDadosPlanilhaCompleta(): Array<{ data: string; diaSemana: string; 
   ];
   type ItemPlanilha = { data: string; diaSemana: string; vendedor: string; ligacoes: number; atendidas: number; aberturas: number; desqualificados: number; formularios: number; onlines: number; callsAgendadas?: number; callsRealizadas?: number };
   const resultado: ItemPlanilha[] = [...base];
-  // Gerar dados de ago/2025 a jan/2026 (todos os períodos da planilha) - determinístico
+  // Gerar dados de ago/2025 até hoje (fallback quando planilha indisponível) - determinístico
   const inicio = new Date('2025-08-03');
-  const fim = new Date('2026-01-28');
+  const hoje = new Date();
+  const fim = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() + 7); // até 7 dias no futuro
   const hash = (n: number) => ((n * 2654435761) % 2147483647);
   const variacao = (seed: number, min: number, max: number) => (hash(seed) % (max - min + 1)) + min;
   for (let d = new Date(inicio); d <= fim; d.setDate(d.getDate() + 1)) {

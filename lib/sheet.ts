@@ -65,6 +65,30 @@ function parseDate(val: string): string {
   return s;
 }
 
+/** Converte array de valores da API v4 (values) para SheetRowRaw[]. Primeira linha = cabeçalho. */
+export function parseSheetValuesFromApi(values: string[][]): SheetRowRaw[] {
+  if (!Array.isArray(values) || values.length < 2) return [];
+  const headerRow = values[0];
+  const headerLine = (headerRow ?? []).map((h: unknown) => String(h ?? '').trim().toLowerCase().replace(/\s+/g, ' ').normalize('NFD').replace(/\u0300-\u036f/g, ''));
+  const keys = headerLine.map((h) => HEADER_ALIASES[h] ?? HEADER_ALIASES[h.replace(/[^a-z0-9]/g, '')] ?? (h as keyof SheetRowRaw));
+  const rows: SheetRowRaw[] = [];
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    const obj: Record<string, string | number> = {};
+    keys.forEach((key, idx) => {
+      if (!key) return;
+      const val = row?.[idx] ?? '';
+      const s = String(val).trim().replace(/^"|"$/g, '');
+      if (key === 'data') obj[key] = parseDate(s);
+      else if (['ligacoes', 'atendidas', 'aberturas', 'desqualificados', 'formularios', 'onlines', 'callsAgendadas', 'callsRealizadas'].includes(key))
+        obj[key] = parseNumber(s);
+      else obj[key] = s;
+    });
+    rows.push(obj as SheetRowRaw);
+  }
+  return rows;
+}
+
 /** Parse CSV string (primeira linha = cabeçalho) e retorna array de objetos com chaves normalizadas. */
 export function parseSheetCSV(csv: string): SheetRowRaw[] {
   const lines = csv
