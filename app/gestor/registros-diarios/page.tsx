@@ -203,7 +203,7 @@ export default function GestorRegistrosDiariosPage() {
   const getSortValue = (reg: RegistroDiario, key: string): string | number => {
     if (key === 'vendedor') return getColaboradorName(reg.colaboradorId).toLowerCase();
     if (key === 'desqualificados') return reg.desqualificados ? 1 : 0;
-    const v = (reg as Record<string, unknown>)[key];
+    const v = (reg as unknown as Record<string, unknown>)[key];
     if (typeof v === 'number') return v;
     if (typeof v === 'string') return v.toLowerCase();
     return '';
