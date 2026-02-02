@@ -113,16 +113,16 @@ export default function GestorDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-white">Dashboard do Gestor</h1>
-        <p className="mt-2 text-gray-300">Acompanhe seus colaboradores e reuniões 1:1</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-white">Dashboard do Gestor</h1>
+        <p className="mt-2 text-gray-300 text-sm sm:text-base">Acompanhe seus colaboradores e reuniões 1:1</p>
       </div>
 
       {/* KPIs dos Registros Diários */}
-      <div className="card-white p-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Métricas de Performance da Equipe</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <div className="card-white p-4 sm:p-6">
+        <h2 className="text-base sm:text-lg font-semibold text-white mb-4">Métricas de Performance da Equipe</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 mb-6">
           <div className="card-white p-4 border border-blue-500/50">
             <div className="flex items-center justify-between mb-2">
               <Phone className="h-5 w-5 text-blue-400" />
@@ -178,11 +178,12 @@ export default function GestorDashboard() {
       {/* Gráficos de Performance Complexos */}
       {registrosDiarios.length > 0 && (
         <>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
             {/* Gráfico de linha temporal por colaborador */}
-            <div className="card-white p-6">
-              <h2 className="text-lg font-semibold text-white mb-4">Evolução de Ligações por Colaborador</h2>
-              <ResponsiveContainer width="100%" height={300}>
+            <div className="card-white p-4 sm:p-6 min-h-0">
+              <h2 className="text-base sm:text-lg font-semibold text-white mb-4">Evolução de Ligações por Colaborador</h2>
+              <div className="chart-responsive">
+              <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={(() => {
                   const datas = Array.from(new Set(registrosDiarios.map(r => r.data))).sort();
                   return datas.map(data => {
@@ -224,12 +225,14 @@ export default function GestorDashboard() {
                   })}
                 </LineChart>
               </ResponsiveContainer>
+              </div>
             </div>
 
             {/* Gráfico de barras empilhadas por dia da semana */}
-            <div className="card-white p-6">
-              <h2 className="text-lg font-semibold text-white mb-4">Ligações por Dia da Semana</h2>
-              <ResponsiveContainer width="100%" height={300}>
+            <div className="card-white p-4 sm:p-6 min-h-0">
+              <h2 className="text-base sm:text-lg font-semibold text-white mb-4">Ligações por Dia da Semana</h2>
+              <div className="chart-responsive">
+              <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={(() => {
                   const diasSemana = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
                   return diasSemana.map(dia => {
@@ -266,13 +269,15 @@ export default function GestorDashboard() {
                   })}
                 </BarChart>
               </ResponsiveContainer>
+              </div>
             </div>
           </div>
 
           {/* Gráfico de barras simples */}
-          <div className="card-white p-6">
-            <h2 className="text-lg font-semibold text-white mb-4">Total de Ligações por Colaborador</h2>
-            <ResponsiveContainer width="100%" height={300}>
+          <div className="card-white p-4 sm:p-6">
+            <h2 className="text-base sm:text-lg font-semibold text-white mb-4">Total de Ligações por Colaborador</h2>
+            <div className="chart-responsive">
+            <ResponsiveContainer width="100%" height={280}>
               <BarChart data={colaboradores.map(col => {
                 const regsColab = registrosDiarios.filter(r => r.colaboradorId === col.id);
                 const total = regsColab.reduce((sum, r) => sum + r.numeroLigacoes, 0);
@@ -297,13 +302,14 @@ export default function GestorDashboard() {
                 <Bar dataKey="total" fill="#3B82F6" />
               </BarChart>
             </ResponsiveContainer>
+            </div>
           </div>
         </>
       )}
 
       {/* Cards de resumo */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="card-white p-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
+        <div className="card-white p-4 sm:p-6">
           <div className="flex items-center">
             <div className="p-3 bg-blue-500/20 rounded-lg">
               <Users className="h-6 w-6 text-blue-400" />
@@ -315,7 +321,7 @@ export default function GestorDashboard() {
           </div>
         </div>
 
-        <div className="card-white p-6">
+        <div className="card-white p-4 sm:p-6">
           <div className="flex items-center">
             <div className="p-3 bg-green-500/20 rounded-lg">
               <CheckCircle className="h-6 w-6 text-green-400" />
@@ -329,7 +335,7 @@ export default function GestorDashboard() {
           </div>
         </div>
 
-        <div className="card-white p-6">
+        <div className="card-white p-4 sm:p-6">
           <div className="flex items-center">
             <div className="p-3 bg-red-500/20 rounded-lg">
               <AlertCircle className="h-6 w-6 text-red-400" />

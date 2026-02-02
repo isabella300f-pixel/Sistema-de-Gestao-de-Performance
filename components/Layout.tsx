@@ -37,34 +37,42 @@ export default function Layout({ children, user, menuItems }: LayoutProps) {
     }
   };
 
+  const headerHeight = '64px';
+
   return (
-    <div className="min-h-screen bg-black">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-        <div className="px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center min-h-[64px] py-2">
-            <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-black flex flex-col">
+      {/* Header: sempre no topo, nunca sobreposto pela sidebar */}
+      <header
+        className="flex-shrink-0 bg-white border-b border-gray-200 sticky top-0 z-50"
+        style={{ minHeight: headerHeight }}
+      >
+        <div className="px-3 sm:px-4 lg:px-6 h-full">
+          <div className="flex justify-between items-center gap-2 min-h-[64px] py-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100"
+                className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 flex-shrink-0"
+                aria-label={sidebarOpen ? 'Fechar menu' : 'Abrir menu'}
               >
                 {sidebarOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="flex items-center gap-3 rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ecosystem-red/50 transition-opacity"
+                className="flex items-center gap-2 rounded-md hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-ecosystem-red/50 transition-opacity min-w-0"
                 title="Voltar para a página de login"
               >
-                <div className="w-10 h-10 bg-ecosystem-red flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 bg-ecosystem-red flex items-center justify-center flex-shrink-0 rounded">
                   <span className="text-white font-bold text-lg">300</span>
                 </div>
-                <Logo300F variant="light" size="small" />
+                <span className="hidden sm:block flex-shrink-0">
+                  <Logo300F variant="light" size="small" />
+                </span>
               </button>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-2 flex-shrink-0">
               <div className="text-right hidden sm:block">
-                <p className="text-sm font-medium text-gray-900">{user.name}</p>
+                <p className="text-sm font-medium text-gray-900 truncate max-w-[140px] sm:max-w-none">{user.name}</p>
                 <p className="text-xs text-gray-500">{getRoleLabel(user.role)}</p>
               </div>
               <button
@@ -79,14 +87,16 @@ export default function Layout({ children, user, menuItems }: LayoutProps) {
         </div>
       </header>
 
-      <div className="flex">
-        {/* Sidebar */}
+      {/* Área abaixo do header: sidebar + conteúdo */}
+      <div className="flex flex-1 min-h-0">
+        {/* Sidebar: sempre ABAIXO do header (mobile: fixed com top = headerHeight) */}
         <aside
           className={`${
             sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          } fixed top-[64px] bottom-0 left-0 z-50 w-64 bg-gray-900 shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 lg:top-0 border-r border-gray-800`}
+          } fixed left-0 z-[45] w-64 max-w-[85vw] bg-gray-900 shadow-xl transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:flex-shrink-0 lg:z-auto lg:max-w-none border-r border-gray-800`}
+          style={{ top: headerHeight, bottom: 0 }}
         >
-          <nav className="mt-5 px-2">
+          <nav className="h-full overflow-y-auto py-4 px-2">
             <div className="space-y-1">
               {menuItems.map((item) => {
                 const isActive = pathname === item.href;
@@ -94,14 +104,15 @@ export default function Layout({ children, user, menuItems }: LayoutProps) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={() => setSidebarOpen(false)}
                     className={`${
                       isActive
                         ? 'bg-ecosystem-red text-white'
                         : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                    } group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors`}
+                    } group flex items-center px-3 py-2.5 text-sm font-medium rounded-md transition-colors`}
                   >
-                    {item.icon && <span className="mr-3">{item.icon}</span>}
-                    {item.label}
+                    {item.icon && <span className="mr-3 flex-shrink-0">{item.icon}</span>}
+                    <span className="truncate">{item.label}</span>
                   </Link>
                 );
               })}
@@ -109,18 +120,20 @@ export default function Layout({ children, user, menuItems }: LayoutProps) {
           </nav>
         </aside>
 
-        {/* Overlay para mobile */}
+        {/* Overlay para mobile: abaixo do header; clique fecha a sidebar */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 bg-gray-900 bg-opacity-75 z-40 lg:hidden"
+            className="fixed inset-0 bg-black/60 z-[42] lg:hidden"
+            style={{ top: headerHeight }}
             onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
           />
         )}
 
         {/* Main content */}
-        <main className="flex-1 lg:ml-0 bg-black">
-          <div className="py-6">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <main className="flex-1 min-w-0 bg-black">
+          <div className="py-4 sm:py-6">
+            <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 w-full overflow-x-hidden">
               {children}
             </div>
           </div>

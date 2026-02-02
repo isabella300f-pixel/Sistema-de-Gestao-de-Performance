@@ -124,7 +124,7 @@ select option {
   }
 
   .card-white-header {
-    @apply px-6 py-4 border-b border-blue-500;
+    @apply px-4 sm:px-6 py-4 border-b border-blue-500;
   }
 
   /* Garantir que todos os textos dentro de card-white sejam brancos */
@@ -159,6 +159,16 @@ select option {
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+  /* Responsividade: containers e tabelas */
+  .container-responsive {
+    @apply w-full max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 overflow-x-hidden;
+  }
+  .table-responsive-wrapper {
+    @apply overflow-x-auto -mx-3 sm:mx-0;
+  }
+  .chart-responsive {
+    @apply min-h-[240px] sm:min-h-[280px] w-full;
   }
 }
 

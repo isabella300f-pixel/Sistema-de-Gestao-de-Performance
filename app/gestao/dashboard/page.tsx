@@ -540,10 +540,10 @@ export default function GestaoDashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Dashboard Executivo</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-start sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Dashboard Executivo</h1>
           <p className="mt-2 text-gray-300">
             {dadosDaPlanilha 
               ? `Dados exatamente da planilha (${registrosDiarios.length} registros carregados) — atualização automática ao recarregar ou ao clicar em Atualizar dados.`
@@ -584,9 +584,9 @@ export default function GestaoDashboardPage() {
       )}
 
       {/* Filtros */}
-      <div className="card-white p-6">
+      <div className="card-white p-4 sm:p-6">
         <h2 className="text-sm font-semibold text-gray-300 mb-4">Filtros</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
           <div className="relative" ref={valorMetricaRef}>
             <label className="block text-xs text-gray-400 mb-1">Valor da métrica</label>
             <button
@@ -862,9 +862,9 @@ export default function GestaoDashboardPage() {
       </div>
 
       {/* KPIs dos Registros Diários (respeitando filtros) */}
-      <div className="card-white p-6">
+      <div className="card-white p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Métricas de Performance (funil de conversão)</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-8 gap-3 sm:gap-4">
           <div className="card-white p-4 border border-blue-500/50">
             <div className="flex items-center justify-between mb-2">
               <Phone className="h-5 w-5 text-blue-400" />
@@ -931,11 +931,12 @@ export default function GestaoDashboardPage() {
       </div>
 
       {/* Gráficos de Performance - Complexos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Gráfico de linha temporal com múltiplas séries por vendedor */}
-        <div className="card-white p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Valor da Métrica ({labelMetricaSelecionada}) Total por Vendedor</h2>
-          <ResponsiveContainer width="100%" height={350}>
+        <div className="card-white p-4 sm:p-6 min-h-0">
+          <h2 className="text-base sm:text-lg font-semibold text-white mb-4">Valor da Métrica ({labelMetricaSelecionada}) Total por Vendedor</h2>
+          <div className="chart-responsive">
+          <ResponsiveContainer width="100%" height={300}>
             <LineChart data={(() => {
               const datas = Array.from(new Set(registrosFiltrados.map(r => r.data))).sort();
               return datas.map(data => {
@@ -993,12 +994,14 @@ export default function GestaoDashboardPage() {
               })}
             </LineChart>
           </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Gráfico de barras empilhadas por dia da semana */}
-        <div className="card-white p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Valor da Métrica ({labelMetricaSelecionada}) por Dia por Vendedor</h2>
-          <ResponsiveContainer width="100%" height={350}>
+        <div className="card-white p-4 sm:p-6 min-h-0">
+          <h2 className="text-base sm:text-lg font-semibold text-white mb-4">Valor da Métrica ({labelMetricaSelecionada}) por Dia por Vendedor</h2>
+          <div className="chart-responsive">
+          <ResponsiveContainer width="100%" height={300}>
             <BarChart data={chartDataPorDiaSemana}>
               <CartesianGrid strokeDasharray="3 3" stroke="#3B82F6" opacity={0.3} />
               <XAxis 
@@ -1040,15 +1043,17 @@ export default function GestaoDashboardPage() {
               })}
             </BarChart>
           </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
       {/* Gráficos Adicionais */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Gráfico de rosca - Distribuição de ligações por vendedor */}
-        <div className="card-white p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">{labelMetricaSelecionada} por Vendedor</h2>
-          <ResponsiveContainer width="100%" height={300}>
+        <div className="card-white p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-semibold text-white mb-4">{labelMetricaSelecionada} por Vendedor</h2>
+          <div className="chart-responsive">
+          <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie
                 data={distribLigacoesPorVendedor}
@@ -1071,12 +1076,14 @@ export default function GestaoDashboardPage() {
               />
             </PieChart>
           </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Gráfico de área - Evolução temporal */}
-        <div className="card-white p-6">
-          <h2 className="text-lg font-semibold text-white mb-4">Evolução de {labelMetricaSelecionada} ao Longo do Tempo</h2>
-          <ResponsiveContainer width="100%" height={300}>
+        <div className="card-white p-4 sm:p-6">
+          <h2 className="text-base sm:text-lg font-semibold text-white mb-4">Evolução de {labelMetricaSelecionada} ao Longo do Tempo</h2>
+          <div className="chart-responsive">
+          <ResponsiveContainer width="100%" height={280}>
             <AreaChart data={chartDataTemporal}>
               <defs>
                 <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
@@ -1101,11 +1108,12 @@ export default function GestaoDashboardPage() {
               <Area type="monotone" dataKey="total" stroke="#3B82F6" fillOpacity={1} fill="url(#colorTotal)" />
             </AreaChart>
           </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
       {/* Gráfico comparativo de semanas por vendedor (segunda a domingo) */}
-      <div className="card-white p-6">
+      <div className="card-white p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Comparativo de semanas por vendedor</h2>
         <p className="text-sm text-gray-400 mb-4">Compare a métrica ({labelMetricaSelecionada}) do vendedor entre semanas. Cada semana é de segunda a domingo.</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">

@@ -85,7 +85,7 @@ export default function ContaAzulDashboardPage() {
       } else {
         console.error('❌ Erro ao buscar categorias:', categoriesData);
         if (categoriesRes.status === 401) {
-          setError('Erro de autenticação (401). Verifique se o token está correto na variável CONTA_AZUL_ACCESS_TOKEN');
+          setError('Erro de autenticação (401). Configure CONTA_AZUL_REFRESH_TOKEN no Vercel (recomendado) ou CONTA_AZUL_CLIENT_ID, CONTA_AZUL_CLIENT_SECRET, CONTA_AZUL_USERNAME e CONTA_AZUL_PASSWORD. Veja VARIAVEIS_CONTA_AZUL.md.');
         }
       }
 
@@ -147,8 +147,13 @@ export default function ContaAzulDashboardPage() {
 
       // Verificar se houve erro de autenticação
       if (categoriesRes.status === 401 || accountsRes.status === 401 || summaryRes.status === 401) {
-        const errorDetails = categoriesData.error || accountsData.error || summaryData.error || 'Erro de autenticação';
-        setError(`Erro de autenticação (401). Verifique se as 4 variáveis OAuth estão configuradas corretamente no Vercel: CONTA_AZUL_CLIENT_ID, CONTA_AZUL_CLIENT_SECRET, CONTA_AZUL_USERNAME, CONTA_AZUL_PASSWORD. Detalhes: ${errorDetails}`);
+        const resData = categoriesData.ok === false ? categoriesData : accountsData.ok === false ? accountsData : summaryData;
+        const details = (resData as { details?: string })?.details || resData.error || 'Erro de autenticação';
+        setError(
+          `Erro de autenticação (401). ` +
+          `Recomendado: configure CONTA_AZUL_REFRESH_TOKEN no Vercel (veja VARIAVEIS_CONTA_AZUL.md para obter o refresh_token). ` +
+          `Alternativa: CONTA_AZUL_CLIENT_ID, CONTA_AZUL_CLIENT_SECRET, CONTA_AZUL_USERNAME e CONTA_AZUL_PASSWORD. Detalhes: ${details}`
+        );
       } else if (!categoriesData.ok && !accountsData.ok && !summaryData.ok && !cashFlowData.ok && !salesData.ok) {
         const firstError = categoriesData.error || accountsData.error || summaryData.error || 'Erro desconhecido';
         setError(`Erro ao carregar dados do Conta Azul: ${firstError}. Verifique as credenciais OAuth no Vercel.`);

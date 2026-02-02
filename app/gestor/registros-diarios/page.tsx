@@ -241,10 +241,10 @@ export default function GestorRegistrosDiariosPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-white">Registros Diários</h1>
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-start sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0">
+          <h1 className="text-2xl sm:text-3xl font-bold text-white">Registros Diários</h1>
           <p className="mt-2 text-gray-300">
             Dados exatamente da planilha — atualização automática ao recarregar ou ao clicar em Atualizar dados.
           </p>
@@ -261,8 +261,8 @@ export default function GestorRegistrosDiariosPage() {
       </div>
 
       {/* Filtros + Botão Pesquisar */}
-      <div className="card-white p-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+      <div className="card-white p-4 sm:p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
             <input
@@ -324,8 +324,8 @@ export default function GestorRegistrosDiariosPage() {
 
       {/* Tabela - só exibe resultado da pesquisa */}
       <div className="card-white">
-        <div className="card-white-header flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">
+        <div className="card-white-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <h2 className="text-base sm:text-lg font-semibold text-white">
             {!pesquisaExecutada
               ? 'Defina os filtros e clique em Pesquisar para carregar os dados'
               : `Resultado da pesquisa: ${resultadoOrdenado.length} registro(s)`}
@@ -361,8 +361,8 @@ export default function GestorRegistrosDiariosPage() {
           )}
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="table-responsive-wrapper overflow-x-auto">
+          <table className="w-full min-w-[700px]">
             <thead>
               <tr className="border-b border-blue-500/30">
                 {COLUNAS_SORT.map(({ key, label, align = 'left' }) => (
