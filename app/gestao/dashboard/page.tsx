@@ -7,7 +7,7 @@ import { Colaborador, Avaliacao11, IndicadoresColaborador, RegistroDiario } from
 import { getAllColaboradores, getAllAvaliacoes11, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
 import { mapSheetRowsToRegistros } from '@/lib/sheet';
 import { calculateScore } from '@/lib/utils';
-import { TrendingUp, TrendingDown, AlertTriangle, Users, Award, XCircle, Phone, PhoneCall, FileText, Globe, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Users, Award, XCircle, Phone, PhoneCall, FileText, Globe, ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend, ComposedChart, Area, AreaChart } from 'recharts';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -23,8 +23,8 @@ export default function GestaoDashboardPage() {
   const [filtrosInicializados, setFiltrosInicializados] = useState(false); // Flag para garantir que filtros sejam aplicados uma vez
   // Filtro padrão: será ajustado quando os dados forem carregados
   const [filterVendedor, setFilterVendedor] = useState<string>('');
-  const [filterDataInicio, setFilterDataInicio] = useState<string>('');
-  const [filterDataFim, setFilterDataFim] = useState<string>('');
+  const [filterDataInicio, setFilterDataInicio] = useState<string>(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [filterDataFim, setFilterDataFim] = useState<string>(() => format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [filterDiaSemana, setFilterDiaSemana] = useState<string>('');
   // Valor da métrica a avaliar nos gráficos (ligações, atendidas, aberturas, etc.)
   const METRICAS_OPCOES: { value: keyof RegistroDiario; label: string }[] = [
@@ -220,26 +220,24 @@ export default function GestaoDashboardPage() {
     load();
   }, [router]);
 
-  // Ajustar filtros quando os dados da planilha forem carregados - FORÇAR aplicação inicial
+  // Ajustar filtros quando os dados da planilha forem carregados: manter mês atual; se houver dados, limitar ao range disponível
   useEffect(() => {
     if (!loading && registrosDiarios.length > 0 && !filtrosInicializados) {
       const datas = registrosDiarios.map(r => r.data).sort();
       if (datas.length > 0) {
         const minDate = datas[0];
         const maxDate = datas[datas.length - 1];
-        // FORÇAR aplicação dos filtros na primeira vez - AMBAS as datas
-        // IMPORTANTE: Usar as datas reais dos dados, não datas fixas
-        setFilterDataInicio(minDate);
-        setFilterDataFim(maxDate);
+        const inicioAtual = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+        const fimAtual = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+        // Usar mês atual, mas limitado ao range dos dados
+        const inicio = inicioAtual < minDate ? minDate : inicioAtual;
+        const fim = fimAtual > maxDate ? maxDate : fimAtual;
+        setFilterDataInicio(inicio);
+        setFilterDataFim(fim);
         setFiltrosInicializados(true);
-        console.log(`📅 Filtros aplicados automaticamente: ${minDate} até ${maxDate} (${registrosDiarios.length} registros)`);
-        console.log(`📊 Exemplo de registros:`, registrosDiarios.slice(0, 3).map(r => ({
-          data: r.data,
-          ligacoes: r.numeroLigacoes,
-          atendidas: r.ligacoesAtendidas
-        })));
+        console.log(`📅 Filtros aplicados: ${inicio} até ${fim} (${registrosDiarios.length} registros)`);
       } else {
-        console.warn(`⚠️ Dados carregados mas sem datas válidas`);
+        setFiltrosInicializados(true);
       }
     }
   }, [loading, registrosDiarios.length, filtrosInicializados]);
@@ -831,29 +829,39 @@ export default function GestaoDashboardPage() {
               </div>
             )}
           </div>
-          <div className="flex items-end">
+          <div className="flex items-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                // Pesquisar: reaplica os filtros (já são reativos; força re-render se necessário)
+                setFiltrosInicializados((v) => v);
+              }}
+              className="flex-1 px-4 py-2 bg-blue-600 border border-blue-500 rounded-md text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 flex items-center justify-center gap-2"
+            >
+              <Search size={18} />
+              Pesquisar
+            </button>
             <button
               type="button"
               onClick={() => {
                 setFilterValorMetrica('numeroLigacoes');
                 setFilterVendedor('');
                 setFilterDiaSemana('');
-                // Ao limpar, usar o range completo dos dados disponíveis
                 if (registrosDiarios.length > 0) {
                   const datas = registrosDiarios.map(r => r.data).sort();
                   if (datas.length > 0) {
                     setFilterDataInicio(datas[0]);
                     setFilterDataFim(datas[datas.length - 1]);
                   } else {
-                    setFilterDataInicio('');
-                    setFilterDataFim('');
+                    setFilterDataInicio(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+                    setFilterDataFim(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
                   }
                 } else {
-                  setFilterDataInicio('');
-                  setFilterDataFim('');
+                  setFilterDataInicio(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+                  setFilterDataFim(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
                 }
               }}
-              className="w-full px-4 py-2 bg-gray-700 border border-gray-500 rounded-md text-gray-300 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 px-4 py-2 bg-gray-700 border border-gray-500 rounded-md text-gray-300 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               Limpar filtros
             </button>

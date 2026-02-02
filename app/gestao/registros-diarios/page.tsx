@@ -17,18 +17,10 @@ export default function RegistrosDiariosPage() {
   const [pesquisaExecutada, setPesquisaExecutada] = useState(false);
   const [resultadoPesquisa, setResultadoPesquisa] = useState<RegistroDiario[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  // Filtro padrão: mês atual ao abrir — dados já carregados na abertura
+  // Filtro padrão: mês atual ao abrir
   const [filterVendedor, setFilterVendedor] = useState<string>('');
-  const [filterDataInicio, setFilterDataInicio] = useState<string>(() => {
-    const n = new Date();
-    const d = new Date(n);
-    d.setDate(d.getDate() - 29);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  });
-  const [filterDataFim, setFilterDataFim] = useState<string>(() => {
-    const n = new Date();
-    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
-  });
+  const [filterDataInicio, setFilterDataInicio] = useState<string>(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [filterDataFim, setFilterDataFim] = useState<string>(() => format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [filterDiaSemana, setFilterDiaSemana] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;

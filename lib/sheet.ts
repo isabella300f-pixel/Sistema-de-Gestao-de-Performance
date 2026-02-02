@@ -45,6 +45,7 @@ const HEADER_ALIASES: Record<string, keyof SheetRowRaw> = {
   'timestamp': 'carimbo',
   'dia da semana': 'diaSemana',
   'dia da semana ': 'diaSemana',
+  'dia da semana:': 'diaSemana',
   'diasemana': 'diaSemana',
   'dia': 'diaSemana',
   vendedor: 'vendedor',
@@ -197,7 +198,8 @@ export function parseSheetCSV(csv: string): SheetRowRaw[] {
   if (lines.length < 2) return [];
 
   const headerLine = lines[0];
-  const sep = headerLine.includes(';') ? ';' : ',';
+  // Google Sheets "Publicar na Web" CSV pode vir com TAB (ex.: locale PT-BR); priorizar TAB > ; > ,
+  const sep = headerLine.includes('\t') ? '\t' : headerLine.includes(';') ? ';' : ',';
   const headers = headerLine
     .split(sep)
     .map((h) => h.trim().replace(/^"|"$/g, '').replace(/\uFEFF/g, '').replace(/\s+/g, ' ').normalize('NFD').replace(/\u0300-\u036f/g, '').trim().toLowerCase());

@@ -19,16 +19,8 @@ export default function GestorRegistrosDiariosPage() {
   const [resultadoPesquisa, setResultadoPesquisa] = useState<RegistroDiario[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterVendedor, setFilterVendedor] = useState<string>('');
-  const [filterDataInicio, setFilterDataInicio] = useState<string>(() => {
-    const n = new Date();
-    const d = new Date(n);
-    d.setDate(d.getDate() - 29);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  });
-  const [filterDataFim, setFilterDataFim] = useState<string>(() => {
-    const n = new Date();
-    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
-  });
+  const [filterDataInicio, setFilterDataInicio] = useState<string>(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [filterDataFim, setFilterDataFim] = useState<string>(() => format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [filterDiaSemana, setFilterDiaSemana] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 50;
@@ -201,6 +193,14 @@ export default function GestorRegistrosDiariosPage() {
     { key: 'desqualificados', label: 'Desqualificados', align: 'right' },
     { key: 'numeroFormularios', label: 'Formulários', align: 'right' },
     { key: 'numeroOnlines', label: 'Onlines', align: 'right' },
+    { key: 'callsAgendadas', label: 'Calls Agendadas', align: 'right' },
+    { key: 'callsRealizadas', label: 'Calls Realizadas', align: 'right' },
+    { key: 'testesVocacionais', label: 'Testes Voc.', align: 'right' },
+    { key: 'diagnosticos', label: 'Diagnósticos', align: 'right' },
+    { key: 'avaliacaoPerformance', label: 'Aval. Performance', align: 'left' },
+    { key: 'sugestaoMelhoria', label: 'Sugestão Melhoria', align: 'left' },
+    { key: 'metaProximoDia', label: 'Meta Próx. Dia', align: 'left' },
+    { key: 'etapaFunilFoco', label: 'Etapa Funil Foco', align: 'left' },
   ];
 
   const getSortValue = (reg: RegistroDiario, key: string): string | number => {
@@ -334,7 +334,7 @@ export default function GestorRegistrosDiariosPage() {
             <button
               onClick={() => {
                 const csv = [
-                  ['Data', 'Dia da Semana', 'Vendedor', 'Ligações', 'Atendidas', 'Aberturas', 'Desqualificados', 'Formulários', 'Onlines'].join(','),
+                  ['Data', 'Dia da Semana', 'Vendedor', 'Ligações', 'Atendidas', 'Aberturas', 'Desqualificados', 'Formulários', 'Onlines', 'Calls Agendadas', 'Calls Realizadas', 'Testes Voc.', 'Diagnósticos', 'Aval. Performance', 'Sugestão Melhoria', 'Meta Próx. Dia', 'Etapa Funil Foco'].join(','),
                   ...resultadoOrdenado.map(reg => [
                     formatDate(reg.data),
                     reg.diaSemana,
@@ -345,6 +345,14 @@ export default function GestorRegistrosDiariosPage() {
                     reg.desqualificados ? 'Sim' : 'Não',
                     reg.numeroFormularios,
                     reg.numeroOnlines,
+                    reg.callsAgendadas ?? '',
+                    reg.callsRealizadas ?? '',
+                    reg.testesVocacionais ?? '',
+                    reg.diagnosticos ?? '',
+                    (reg.avaliacaoPerformance ?? '').replace(/"/g, '""'),
+                    (reg.sugestaoMelhoria ?? '').replace(/"/g, '""'),
+                    (reg.metaProximoDia ?? '').replace(/"/g, '""'),
+                    (reg.etapaFunilFoco ?? '').replace(/"/g, '""'),
                   ].join(','))
                 ].join('\n');
                 const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -382,13 +390,13 @@ export default function GestorRegistrosDiariosPage() {
             <tbody className="divide-y divide-blue-500/30">
               {!pesquisaExecutada ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={17} className="px-6 py-12 text-center text-gray-400">
                     Defina os filtros e clique em Pesquisar para carregar os dados da planilha.
                   </td>
                 </tr>
               ) : paginatedRegistros.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-gray-400">
+                  <td colSpan={17} className="px-6 py-12 text-center text-gray-400">
                     Nenhum registro encontrado para os filtros aplicados.
                   </td>
                 </tr>
@@ -406,6 +414,14 @@ export default function GestorRegistrosDiariosPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.numeroFormularios}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.numeroOnlines}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.callsAgendadas ?? '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.callsRealizadas ?? '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.testesVocacionais ?? '-'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.diagnosticos ?? '-'}</td>
+                    <td className="px-6 py-4 text-white max-w-[200px] truncate" title={reg.avaliacaoPerformance ?? ''}>{reg.avaliacaoPerformance ?? '-'}</td>
+                    <td className="px-6 py-4 text-white max-w-[200px] truncate" title={reg.sugestaoMelhoria ?? ''}>{reg.sugestaoMelhoria ?? '-'}</td>
+                    <td className="px-6 py-4 text-white max-w-[200px] truncate" title={reg.metaProximoDia ?? ''}>{reg.metaProximoDia ?? '-'}</td>
+                    <td className="px-6 py-4 text-white max-w-[200px] truncate" title={reg.etapaFunilFoco ?? ''}>{reg.etapaFunilFoco ?? '-'}</td>
                   </tr>
                 ))
               )}
