@@ -575,9 +575,14 @@ export function getAllRegistrosDiarios(): RegistroDiario[] {
   return registrosDiarios.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 }
 
-/** Substitui os registros diários pelos dados da planilha (sincronização com Sheets). */
+/** Substitui os registros diários pelos dados da planilha (sincronização com Sheets). 
+ * IMPORTANTE: Esta função LIMPA todos os dados anteriores e usa APENAS os dados da planilha.
+ * NUNCA use initializeRegistrosDiarios() quando houver dados da planilha.
+ */
 export function setRegistrosDiariosFromSheet(registros: RegistroDiario[]): void {
+  // LIMPAR COMPLETAMENTE antes de adicionar dados da planilha
   registrosDiarios.length = 0;
+  // Adicionar APENAS os dados que vieram da planilha (100% da planilha, sem inventar nada)
   registrosDiarios.push(...registros);
 }
 

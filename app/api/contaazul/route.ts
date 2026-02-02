@@ -36,6 +36,9 @@ export async function GET(request: Request) {
     // Obter credenciais do ambiente
     const clientId = process.env.CONTA_AZUL_CLIENT_ID || '13i92mrduirpqcdctqp9q1vr9c';
     const clientSecret = process.env.CONTA_AZUL_CLIENT_SECRET || '3cufa5ee3ltuo8mtkiotn82r32k38atb21mhud1orfphtvh2mep';
+    // Credenciais de teste do ERP (username/password)
+    const username = process.env.CONTA_AZUL_USERNAME || 'a948e6e2-47da-410e-9646-0019c66f1503@devportal.com';
+    const password = process.env.CONTA_AZUL_PASSWORD || 'a948e6e2-47da-410e-9646-0019c66f1503';
 
     if (!clientId || !clientSecret) {
       return NextResponse.json(
@@ -44,8 +47,8 @@ export async function GET(request: Request) {
       );
     }
 
-    // Obter token de acesso
-    const accessToken = await getContaAzulAccessToken(clientId, clientSecret);
+    // Obter token de acesso - tentar com username/password primeiro (conta de teste)
+    const accessToken = await getContaAzulAccessToken(clientId, clientSecret, username, password);
     if (!accessToken) {
       // Retornar erro mais detalhado para debug
       return NextResponse.json(

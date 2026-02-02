@@ -69,32 +69,51 @@ export interface ContaAzulFinancialSummary {
 }
 
 /**
- * Obtém token de acesso usando client credentials (OAuth 2.0)
+ * Obtém token de acesso usando múltiplos métodos OAuth 2.0
+ * Tenta: 1) Password grant (username/password), 2) Client credentials, 3) Authorization code
  */
 export async function getContaAzulAccessToken(
   clientId: string,
-  clientSecret: string
+  clientSecret: string,
+  username?: string,
+  password?: string
 ): Promise<string | null> {
   try {
-    // Tentar authorization code flow primeiro (se tiver refresh token)
-    // Caso contrário, tentar client credentials
-    const response = await fetch(CONTA_AZUL_AUTH_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-      },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: 'https://contaazul.com',
-      }),
-    });
+    // MÉTODO 1: Tentar password grant (username/password) - para contas de teste
+    if (username && password) {
+      try {
+        const response = await fetch(CONTA_AZUL_AUTH_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json',
+          },
+          body: new URLSearchParams({
+            grant_type: 'password',
+            client_id: clientId,
+            client_secret: clientSecret,
+            username: username,
+            password: password,
+            scope: 'sales financial',
+          }),
+        });
 
-    if (!response.ok) {
-      // Se authorization_code falhar, tentar client_credentials
-      const response2 = await fetch(CONTA_AZUL_AUTH_URL, {
+        if (response.ok) {
+          const data: ContaAzulTokenResponse = await response.json();
+          console.log('✅ Token obtido via password grant');
+          return data.access_token;
+        } else {
+          const errorText = await response.text();
+          console.warn('Password grant falhou:', response.status, errorText);
+        }
+      } catch (error) {
+        console.warn('Erro ao tentar password grant:', error);
+      }
+    }
+
+    // MÉTODO 2: Tentar client_credentials
+    try {
+      const response = await fetch(CONTA_AZUL_AUTH_URL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -104,21 +123,53 @@ export async function getContaAzulAccessToken(
           grant_type: 'client_credentials',
           client_id: clientId,
           client_secret: clientSecret,
+          scope: 'sales financial',
         }),
       });
 
-      if (!response2.ok) {
-        const errorText = await response2.text();
-        console.error('Erro ao obter token do Conta Azul:', response2.status, errorText);
-        return null;
+      if (response.ok) {
+        const data: ContaAzulTokenResponse = await response.json();
+        console.log('✅ Token obtido via client_credentials');
+        return data.access_token;
+      } else {
+        const errorText = await response.text();
+        console.warn('Client credentials falhou:', response.status, errorText);
       }
-
-      const data: ContaAzulTokenResponse = await response2.json();
-      return data.access_token;
+    } catch (error) {
+      console.warn('Erro ao tentar client_credentials:', error);
     }
 
-    const data: ContaAzulTokenResponse = await response.json();
-    return data.access_token;
+    // MÉTODO 3: Tentar authorization_code (último recurso)
+    try {
+      const response = await fetch(CONTA_AZUL_AUTH_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+        },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: 'https://contaazul.com',
+        }),
+      });
+
+      if (response.ok) {
+        const data: ContaAzulTokenResponse = await response.json();
+        console.log('✅ Token obtido via authorization_code');
+        return data.access_token;
+      } else {
+        const errorText = await response.text();
+        console.warn('Authorization code falhou:', response.status, errorText);
+      }
+    } catch (error) {
+      console.warn('Erro ao tentar authorization_code:', error);
+    }
+
+    // Se todos os métodos falharam
+    console.error('❌ Todos os métodos de autenticação falharam');
+    return null;
   } catch (error) {
     console.error('Erro ao obter token do Conta Azul:', error);
     return null;

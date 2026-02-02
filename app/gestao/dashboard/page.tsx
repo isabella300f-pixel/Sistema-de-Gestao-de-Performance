@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Colaborador, Avaliacao11, IndicadoresColaborador, RegistroDiario } from '@/types';
-import { getAllColaboradores, getAllAvaliacoes11, getAllRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
+import { getAllColaboradores, getAllAvaliacoes11, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
 import { mapSheetRowsToRegistros } from '@/lib/sheet';
 import { calculateScore } from '@/lib/utils';
 import { TrendingUp, TrendingDown, AlertTriangle, Users, Award, XCircle, Phone, PhoneCall, FileText, Globe, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
@@ -20,6 +20,7 @@ export default function GestaoDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [dadosDaPlanilha, setDadosDaPlanilha] = useState(true); // true = dados da planilha carregados, false = planilha indisponível
+  const [filtrosInicializados, setFiltrosInicializados] = useState(false); // Flag para garantir que filtros sejam aplicados uma vez
   // Filtro padrão: será ajustado quando os dados forem carregados
   const [filterVendedor, setFilterVendedor] = useState<string>('');
   const [filterDataInicio, setFilterDataInicio] = useState<string>('');
@@ -113,31 +114,42 @@ export default function GestaoDashboardPage() {
       const bust = Date.now();
       const res = await fetch(`/api/sheet/registros-diarios?_=${bust}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
       const json = await res.json();
+      
       if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
+        // DADOS 100% DA PLANILHA - SEM INVENTAR NADA
         const registros = mapSheetRowsToRegistros(json.data, getColaboradorIdByName);
         if (registros.length > 0) {
           // Ordenar por data (mais recente primeiro)
           const registrosOrdenados = registros.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+          
+          // LIMPAR QUALQUER DADO ANTERIOR E USAR APENAS OS DADOS DA PLANILHA
           setRegistrosDiariosFromSheet(registrosOrdenados);
           setRegistrosDiarios(registrosOrdenados);
           setDadosDaPlanilha(true);
+          
+          // Resetar flag de filtros para reaplicar quando novos dados chegarem
+          setFiltrosInicializados(false);
+          
+          console.log(`✅ Dados carregados da planilha: ${registrosOrdenados.length} registros`);
+          const datas = registrosOrdenados.map(r => r.data).sort();
+          if (datas.length > 0) {
+            console.log(`📊 Range de datas: ${datas[0]} até ${datas[datas.length - 1]}`);
+          }
           return;
         }
       }
-      // Se não há dados, limpar mas manter estado de dados disponíveis se já havia dados antes
-      if (registrosDiarios.length === 0) {
-        setRegistrosDiariosFromSheet([]);
-        setRegistrosDiarios([]);
-        setDadosDaPlanilha(false);
-      }
+      
+      // Se não há dados da planilha, limpar TUDO
+      console.warn('⚠️ Planilha sem dados ou indisponível');
+      setRegistrosDiariosFromSheet([]);
+      setRegistrosDiarios([]);
+      setDadosDaPlanilha(false);
     } catch (error) {
-      console.error('Erro ao carregar dados da planilha:', error);
-      // Só limpar se não houver dados já carregados
-      if (registrosDiarios.length === 0) {
-        setRegistrosDiariosFromSheet([]);
-        setRegistrosDiarios([]);
-        setDadosDaPlanilha(false);
-      }
+      console.error('❌ Erro ao carregar dados da planilha:', error);
+      // Em caso de erro, limpar dados
+      setRegistrosDiariosFromSheet([]);
+      setRegistrosDiarios([]);
+      setDadosDaPlanilha(false);
     }
   };
 
@@ -174,23 +186,23 @@ export default function GestaoDashboardPage() {
     load();
   }, [router]);
 
-  // Ajustar filtros quando os dados da planilha forem carregados
+  // Ajustar filtros quando os dados da planilha forem carregados - FORÇAR aplicação inicial
+  const [filtrosInicializados, setFiltrosInicializados] = useState(false);
+  
   useEffect(() => {
-    if (!loading && registrosDiarios.length > 0) {
+    if (!loading && registrosDiarios.length > 0 && !filtrosInicializados) {
       const datas = registrosDiarios.map(r => r.data).sort();
       if (datas.length > 0) {
         const minDate = datas[0];
         const maxDate = datas[datas.length - 1];
-        // Sempre usar o range completo dos dados disponíveis na primeira vez
-        // Usar uma flag para garantir que só ajuste uma vez
-        const shouldSetFilters = !filterDataInicio || filterDataInicio === '' || !filterDataFim || filterDataFim === '';
-        if (shouldSetFilters) {
-          setFilterDataInicio(minDate);
-          setFilterDataFim(maxDate);
-        }
+        // FORÇAR aplicação dos filtros na primeira vez - AMBAS as datas
+        setFilterDataInicio(minDate);
+        setFilterDataFim(maxDate);
+        setFiltrosInicializados(true);
+        console.log(`📅 Filtros aplicados automaticamente: ${minDate} até ${maxDate} (${registrosDiarios.length} registros)`);
       }
     }
-  }, [loading, registrosDiarios.length, filterDataInicio, filterDataFim]);
+  }, [loading, registrosDiarios.length, filtrosInicializados]);
 
   useEffect(() => {
     const onVisibility = () => {
