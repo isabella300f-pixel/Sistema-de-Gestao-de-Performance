@@ -20,8 +20,6 @@ export default function GestaoDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [dadosDaPlanilha, setDadosDaPlanilha] = useState(true); // true = dados da planilha carregados, false = planilha indisponível
-  const [filtrosInicializados, setFiltrosInicializados] = useState(false); // Flag para garantir que filtros sejam aplicados uma vez
-  // Filtro padrão: será ajustado quando os dados forem carregados
   const [filterVendedor, setFilterVendedor] = useState<string>('');
   const [filterDataInicio, setFilterDataInicio] = useState<string>(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [filterDataFim, setFilterDataFim] = useState<string>(() => format(endOfMonth(new Date()), 'yyyy-MM-dd'));
@@ -231,27 +229,8 @@ export default function GestaoDashboardPage() {
     load();
   }, [router]);
 
-  // Ajustar filtros quando os dados da planilha forem carregados: manter mês atual; se houver dados, limitar ao range disponível
-  useEffect(() => {
-    if (!loading && registrosDiarios.length > 0 && !filtrosInicializados) {
-      const datas = registrosDiarios.map(r => r.data).sort();
-      if (datas.length > 0) {
-        const minDate = datas[0];
-        const maxDate = datas[datas.length - 1];
-        const inicioAtual = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-        const fimAtual = format(endOfMonth(new Date()), 'yyyy-MM-dd');
-        // Usar mês atual, mas limitado ao range dos dados
-        const inicio = inicioAtual < minDate ? minDate : inicioAtual;
-        const fim = fimAtual > maxDate ? maxDate : fimAtual;
-        setFilterDataInicio(inicio);
-        setFilterDataFim(fim);
-        setFiltrosInicializados(true);
-        console.log(`📅 Filtros aplicados: ${inicio} até ${fim} (${registrosDiarios.length} registros)`);
-      } else {
-        setFiltrosInicializados(true);
-      }
-    }
-  }, [loading, registrosDiarios.length, filtrosInicializados]);
+  // Não alterar filtros quando os dados carregam: manter sempre o que o usuário escolheu (ou mês atual no primeiro load).
+  // Assim o filtro não "pula" para fevereiro só porque havia um registro 21/02 na planilha (igual a Registros Diários).
 
   // Quando os filtros mudarem, garantir que os dados sejam recalculados
   // Isso garante que ao mudar a data, os dados sejam atualizados
@@ -537,7 +516,7 @@ export default function GestaoDashboardPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-white">Dashboard Executivo</h1>
           <p className="mt-2 text-gray-300">
             {dadosDaPlanilha 
-              ? `Dados exatamente da planilha (${registrosDiarios.length} registros carregados) — atualização automática ao recarregar ou ao clicar em Atualizar dados.`
+              ? `Dados da planilha (${registrosDiarios.length} registros) — filtro por coluna Data, igual a Registros Diários. Alterou a planilha? Clique em Atualizar dados.`
               : 'Planilha indisponível ou sem dados. Verifique a publicação da planilha e clique em Atualizar dados.'}
           </p>
           {registrosDiarios.length > 0 && (
