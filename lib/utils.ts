@@ -5,7 +5,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Formata data sem mudar dia por timezone: YYYY-MM-DD é tratado como data local. */
 export function formatDate(date: string | Date): string {
+  if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
+    const [y, m, d] = date.trim().split('-').map(Number);
+    return new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    }).format(new Date(y, m - 1, d));
+  }
   const d = typeof date === 'string' ? new Date(date) : date;
   return new Intl.DateTimeFormat('pt-BR', {
     day: '2-digit',
