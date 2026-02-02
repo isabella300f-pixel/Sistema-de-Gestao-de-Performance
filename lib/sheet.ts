@@ -432,7 +432,7 @@ export function mapSheetRowsToRegistros(
       numeroLigacoes: getNumValue('ligacoes', ['ligações', 'Ligações', 'ligacoes total', 'número de ligações']),
       ligacoesAtendidas: getNumValue('atendidas', ['atendidas', 'Atendidas', 'número de ligações atendidas']),
       numeroAberturas: getNumValue('aberturas', ['aberturas', 'Aberturas', 'número de aberturas']),
-      desqualificados: Boolean(Number(row.desqualificados ?? rowAny.desqualificados ?? 0)),
+      desqualificados: getNumValue('desqualificados', ['algum desqualificado?', 'algum desqualificado']),
       numeroFormularios: getNumValue('formularios', ['formulários', 'Formulários', 'número de formulários']),
       numeroOnlines: getNumValue('onlines', ['onlines', 'Onlines', 'número de onlines']),
       callsAgendadas: getNumValue('callsAgendadas', ['calls agendadas', 'Calls Agendadas']),

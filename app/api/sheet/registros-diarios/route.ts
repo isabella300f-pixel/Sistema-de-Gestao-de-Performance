@@ -78,8 +78,6 @@ function sheetRowToSupabaseRow(row: SheetRowRaw): Record<string, unknown> | null
   const dataStr = extractDataFromRow(row);
   if (!dataStr) return null;
   const num = (v: unknown) => (v !== undefined && v !== null && v !== '' ? Number(String(v).replace(/\s/g, '').replace(',', '.').replace(/[^\d.-]/g, '')) : 0) || 0;
-  const desq = row.desqualificados ?? rowAny.desqualificados;
-  const desqBool = desq === 'sim' || desq === 's' || desq === 1 || desq === '1' || String(desq).toLowerCase() === 'true';
   return {
     carimbo_data_hora: (row.carimbo ?? rowAny.carimbo ?? null) as string | null,
     data: dataStr,
@@ -87,7 +85,7 @@ function sheetRowToSupabaseRow(row: SheetRowRaw): Record<string, unknown> | null
     numero_ligacoes: num(row.ligacoes ?? rowAny.ligacoes),
     numero_ligacoes_atendidas: num(row.atendidas ?? rowAny.atendidas),
     numero_aberturas: num(row.aberturas ?? rowAny.aberturas),
-    algum_desqualificado: desqBool,
+    numero_desqualificados: num(row.desqualificados ?? rowAny.desqualificados),
     numero_formularios: num(row.formularios ?? rowAny.formularios),
     numero_onlines: num(row.onlines ?? rowAny.onlines),
     vendedor: nome || null,

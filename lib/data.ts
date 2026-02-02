@@ -514,7 +514,7 @@ export function initializeRegistrosDiarios() {
         numeroLigacoes: item.ligacoes,
         ligacoesAtendidas: item.atendidas,
         numeroAberturas: item.aberturas,
-        desqualificados: (item.desqualificados ?? 0) > 0,
+        desqualificados: item.desqualificados ?? 0,
         numeroFormularios: item.formularios ?? 0,
         numeroOnlines: item.onlines ?? 0,
         callsAgendadas: item.callsAgendadas ?? 0,

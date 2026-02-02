@@ -59,7 +59,7 @@ export interface RegistroDiario {
   numeroLigacoes: number;
   ligacoesAtendidas: number;
   numeroAberturas: number;
-  desqualificados: boolean;
+  desqualificados: number;
   numeroFormularios: number;
   numeroOnlines: number;
   callsAgendadas: number;

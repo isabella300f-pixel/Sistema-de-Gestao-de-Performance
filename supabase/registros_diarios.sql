@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS registros_diarios (
   numero_ligacoes INTEGER DEFAULT 0,
   numero_ligacoes_atendidas INTEGER DEFAULT 0,
   numero_aberturas INTEGER DEFAULT 0,
-  algum_desqualificado BOOLEAN DEFAULT false,
+  numero_desqualificados INTEGER DEFAULT 0,
   numero_formularios INTEGER DEFAULT 0,
   numero_onlines INTEGER DEFAULT 0,
   vendedor TEXT,
@@ -61,7 +61,7 @@ COMMENT ON COLUMN registros_diarios.dia_semana IS 'Dia da Semana';
 COMMENT ON COLUMN registros_diarios.numero_ligacoes IS 'Número de ligações';
 COMMENT ON COLUMN registros_diarios.numero_ligacoes_atendidas IS 'Número de ligações atendidas';
 COMMENT ON COLUMN registros_diarios.numero_aberturas IS 'Número de aberturas';
-COMMENT ON COLUMN registros_diarios.algum_desqualificado IS 'Algum desqualificado?';
+COMMENT ON COLUMN registros_diarios.numero_desqualificados IS 'Número de desqualificados';
 COMMENT ON COLUMN registros_diarios.numero_formularios IS 'Número de formulários';
 COMMENT ON COLUMN registros_diarios.numero_onlines IS 'Número de onlines';
 COMMENT ON COLUMN registros_diarios.vendedor IS 'Vendedor';

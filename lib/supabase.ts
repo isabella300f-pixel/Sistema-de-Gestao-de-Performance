@@ -31,7 +31,7 @@ export interface RegistroDiarioRow {
   numero_ligacoes: number;
   numero_ligacoes_atendidas: number;
   numero_aberturas: number;
-  algum_desqualificado: boolean;
+  numero_desqualificados: number;
   numero_formularios: number;
   numero_onlines: number;
   vendedor: string | null;

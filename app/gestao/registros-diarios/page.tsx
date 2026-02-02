@@ -217,7 +217,6 @@ export default function RegistrosDiariosPage() {
 
   const getSortValue = (reg: RegistroDiario, key: string): string | number => {
     if (key === 'vendedor') return getVendedorDisplayName(reg).toLowerCase();
-    if (key === 'desqualificados') return reg.desqualificados ? 1 : 0;
     const v = (reg as unknown as Record<string, unknown>)[key];
     if (typeof v === 'number') return v;
     if (typeof v === 'string') return v.toLowerCase();
@@ -440,7 +439,7 @@ export default function RegistrosDiariosPage() {
                     reg.numeroLigacoes,
                     reg.ligacoesAtendidas,
                     reg.numeroAberturas,
-                    reg.desqualificados ? 'Sim' : 'Não',
+                    reg.desqualificados,
                     reg.numeroFormularios,
                     reg.numeroOnlines,
                     reg.callsAgendadas ?? '',
@@ -508,7 +507,7 @@ export default function RegistrosDiariosPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.ligacoesAtendidas}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.numeroAberturas}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-white">
-                      {reg.desqualificados ? 'Sim' : 'Não'}
+                      {reg.desqualificados}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.numeroFormularios}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-white">{reg.numeroOnlines}</td>
