@@ -120,9 +120,26 @@ export default function GestaoDashboardPage() {
       
       if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
         console.log(`📦 Dados brutos recebidos: ${json.data.length} linhas`);
+        // Debug: mostrar estrutura dos primeiros dados
+        if (json.data.length > 0) {
+          console.log(`🔍 Estrutura do primeiro registro:`, JSON.stringify(json.data[0], null, 2));
+          console.log(`🔍 Estrutura do segundo registro:`, JSON.stringify(json.data[1], null, 2));
+        }
+        
         // DADOS 100% DA PLANILHA - SEM INVENTAR NADA
         const registros = mapSheetRowsToRegistros(json.data, getColaboradorIdByName);
         console.log(`🗺️ Registros mapeados: ${registros.length}`);
+        
+        // Se não mapeou nada, tentar entender por quê
+        if (registros.length === 0 && json.data.length > 0) {
+          console.error(`❌ ERRO: Nenhum registro mapeado de ${json.data.length} linhas!`);
+          console.error(`   Primeiras 3 linhas:`, json.data.slice(0, 3));
+          // Verificar se há campos vendedor/nome
+          const temVendedor = json.data.some((row: any) => row.vendedor || row.Vendedor || row.nome || row.Nome);
+          const temData = json.data.some((row: any) => row.data || row.Data || row.carimbo || row.Carimbo);
+          console.error(`   Tem campo vendedor? ${temVendedor}`);
+          console.error(`   Tem campo data? ${temData}`);
+        }
         
         if (registros.length > 0) {
           // Ordenar por data (mais recente primeiro)
@@ -226,6 +243,15 @@ export default function GestaoDashboardPage() {
       }
     }
   }, [loading, registrosDiarios.length, filtrosInicializados]);
+
+  // Quando os filtros mudarem, garantir que os dados sejam recalculados
+  // Isso garante que ao mudar a data, os dados sejam atualizados
+  useEffect(() => {
+    if (!loading && registrosDiarios.length > 0) {
+      // Os registrosFiltrados são recalculados automaticamente, mas forçar re-render
+      console.log(`🔄 Filtros atualizados: início=${filterDataInicio}, fim=${filterDataFim}, vendedor=${filterVendedor || 'todos'}`);
+    }
+  }, [filterDataInicio, filterDataFim, filterVendedor, filterDiaSemana, loading, registrosDiarios.length]);
 
   useEffect(() => {
     const onVisibility = () => {

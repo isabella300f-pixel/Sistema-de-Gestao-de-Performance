@@ -28,18 +28,28 @@ const HEADER_ALIASES: Record<string, keyof SheetRowRaw> = {
   data: 'data',
   'carimbo de data/hora': 'carimbo',
   'carimbo de data': 'carimbo',
+  'carimbo': 'carimbo',
+  'timestamp': 'carimbo',
   'dia da semana': 'diaSemana',
   'dia da semana ': 'diaSemana',
-  diasemana: 'diaSemana',
+  'diasemana': 'diaSemana',
+  'dia': 'diaSemana',
   vendedor: 'vendedor',
+  'vendedor': 'vendedor',
+  'nome': 'vendedor',
+  'colaborador': 'vendedor',
   ligações: 'ligacoes',
   ligacoes: 'ligacoes',
   'ligacoes total': 'ligacoes',
   'número de ligações': 'ligacoes',
   'numero de ligacoes': 'ligacoes',
+  'ligações': 'ligacoes',
+  'total ligações': 'ligacoes',
   atendidas: 'atendidas',
   'número de ligações atendidas': 'atendidas',
   'numero de ligacoes atendidas': 'atendidas',
+  'ligações atendidas': 'atendidas',
+  'ligacoes atendidas': 'atendidas',
   aberturas: 'aberturas',
   'número de aberturas': 'aberturas',
   'numero de aberturas': 'aberturas',
@@ -55,9 +65,11 @@ const HEADER_ALIASES: Record<string, keyof SheetRowRaw> = {
   'número de onlines': 'onlines',
   'numero de onlines': 'onlines',
   'calls agendadas': 'callsAgendadas',
-  callsagendadas: 'callsAgendadas',
+  'callsagendadas': 'callsAgendadas',
+  'calls agendadas': 'callsAgendadas',
   'calls realizadas': 'callsRealizadas',
-  callsrealizadas: 'callsRealizadas',
+  'callsrealizadas': 'callsRealizadas',
+  'calls realizadas': 'callsRealizadas',
 };
 
 function parseNumber(val: string): number {
@@ -95,13 +107,29 @@ function parseDate(val: string): string {
 
 /** Converte array de valores da API v4 (values) para SheetRowRaw[]. Primeira linha = cabeçalho. */
 export function parseSheetValuesFromApi(values: string[][]): SheetRowRaw[] {
-  if (!Array.isArray(values) || values.length < 2) return [];
+  if (!Array.isArray(values) || values.length < 2) {
+    console.warn('⚠️ parseSheetValuesFromApi: valores inválidos ou insuficientes');
+    return [];
+  }
+  
   const headerRow = values[0];
   const headerLine = (headerRow ?? []).map((h: unknown) => String(h ?? '').trim().toLowerCase().replace(/\s+/g, ' ').normalize('NFD').replace(/\u0300-\u036f/g, ''));
-  const keys = headerLine.map((h) => HEADER_ALIASES[h] ?? HEADER_ALIASES[h.replace(/[^a-z0-9]/g, '')] ?? (h as keyof SheetRowRaw));
+  const keys = headerLine.map((h) => {
+    const alias = HEADER_ALIASES[h] ?? HEADER_ALIASES[h.replace(/[^a-z0-9]/g, '')];
+    return alias || h as keyof SheetRowRaw;
+  });
+  
+  // Debug: mostrar cabeçalhos encontrados
+  if (values.length > 1) {
+    console.log('📋 Cabeçalhos encontrados:', headerLine.slice(0, 10));
+    console.log('🔑 Chaves mapeadas:', keys.slice(0, 10));
+  }
+  
   const rows: SheetRowRaw[] = [];
   for (let i = 1; i < values.length; i++) {
     const row = values[i];
+    if (!row || row.length === 0) continue;
+    
     const obj: Record<string, string | number> = {};
     keys.forEach((key, idx) => {
       if (!key) return;
@@ -114,8 +142,18 @@ export function parseSheetValuesFromApi(values: string[][]): SheetRowRaw[] {
         obj[key] = parseNumber(s);
       else obj[key] = s;
     });
+    
+    // Manter também os campos originais para fallback
+    headerLine.forEach((h, idx) => {
+      if (!obj[h as keyof SheetRowRaw] && row[idx]) {
+        (obj as any)[h] = String(row[idx]).trim();
+      }
+    });
+    
     rows.push(obj as SheetRowRaw);
   }
+  
+  console.log(`✅ parseSheetValuesFromApi: ${rows.length} linhas processadas de ${values.length - 1} linhas de dados`);
   return rows;
 }
 
@@ -195,30 +233,95 @@ export function mapSheetRowsToRegistros(
 ): RegistroDiario[] {
   const registros: RegistroDiario[] = [];
   let id = 1;
+  let skippedSemVendedor = 0;
+  let skippedSemData = 0;
+  
+  // Debug: mostrar estrutura do primeiro registro
+  if (rows.length > 0) {
+    console.log('🔍 Estrutura do primeiro registro bruto:', Object.keys(rows[0]));
+    console.log('🔍 Primeiro registro completo:', rows[0]);
+  }
+  
   for (const row of rows) {
-    const nome = (row.vendedor ?? '').trim();
-    if (!nome) continue;
-    const dataStr = extractDataFromRow(row);
-    if (!dataStr) continue;
-    const colaboradorId = getColaboradorId(nome) ?? `sheet:${nome}`;
+    // Tentar múltiplas formas de obter o nome do vendedor (case-insensitive, com fallbacks)
+    const rowAny = row as any;
+    const nome = (
+      row.vendedor ?? 
+      rowAny.Vendedor ?? 
+      rowAny.vendedor ?? 
+      rowAny.nome ?? 
+      rowAny.Nome ?? 
+      rowAny.colaborador ?? 
+      rowAny.Colaborador ??
+      rowAny['vendedor'] ??
+      rowAny['Vendedor'] ??
+      ''
+    ).toString().trim();
+    
+    if (!nome || nome === 'undefined' || nome === 'null' || nome === '') {
+      skippedSemVendedor++;
+      // Se não tem vendedor mas tem dados, usar um placeholder
+      const temDados = row.ligacoes || rowAny.ligações || rowAny.ligacoes || rowAny['ligações'] || rowAny['ligacoes'];
+      if (!temDados) continue;
+    }
+    
+    // Tentar múltiplas formas de obter a data
+    let dataStr = extractDataFromRow(row);
+    
+    // Se não encontrou, tentar campos alternativos diretamente
+    if (!dataStr) {
+      const altData = rowAny.Data || rowAny.data || rowAny.carimbo || rowAny.Carimbo || rowAny.timestamp || rowAny.Timestamp || rowAny['data'] || rowAny['carimbo'];
+      if (altData) {
+        dataStr = parseDate(String(altData));
+      }
+    }
+    
+    if (!dataStr) {
+      skippedSemData++;
+      continue;
+    }
+    
+    // Usar nome ou placeholder
+    const nomeFinal = nome || 'Vendedor Desconhecido';
+    const colaboradorId = getColaboradorId(nomeFinal) ?? `sheet:${nomeFinal}`;
+    
+    // Tentar obter valores numéricos de múltiplas formas
+    const getNumValue = (field: string, altFields: string[] = []): number => {
+      const val = (row as any)[field] ?? rowAny[field];
+      if (val !== undefined && val !== null && val !== '') return parseNumber(String(val));
+      for (const alt of altFields) {
+        const altVal = rowAny[alt] ?? rowAny[alt.toLowerCase()] ?? rowAny[alt.toUpperCase()];
+        if (altVal !== undefined && altVal !== null && altVal !== '') return parseNumber(String(altVal));
+      }
+      return 0;
+    };
+    
     const reg: RegistroDiario = {
       id: `registro-${id++}`,
       colaboradorId,
       data: dataStr,
-      diaSemana: (row.diaSemana ?? '').trim() || 'N/A',
-      numeroLigacoes: Number(row.ligacoes) || 0,
-      ligacoesAtendidas: Number(row.atendidas) || 0,
-      numeroAberturas: Number(row.aberturas) || 0,
-      desqualificados: Boolean(Number(row.desqualificados)),
-      numeroFormularios: Number(row.formularios) || 0,
-      numeroOnlines: Number(row.onlines) || 0,
-      callsAgendadas: Number(row.callsAgendadas) || 0,
-      callsRealizadas: Number(row.callsRealizadas) || 0,
+      diaSemana: (row.diaSemana ?? rowAny.dia ?? rowAny['dia da semana'] ?? '').toString().trim() || 'N/A',
+      numeroLigacoes: getNumValue('ligacoes', ['ligações', 'Ligações', 'ligacoes total', 'número de ligações']),
+      ligacoesAtendidas: getNumValue('atendidas', ['atendidas', 'Atendidas', 'número de ligações atendidas']),
+      numeroAberturas: getNumValue('aberturas', ['aberturas', 'Aberturas', 'número de aberturas']),
+      desqualificados: Boolean(Number(row.desqualificados ?? rowAny.desqualificados ?? 0)),
+      numeroFormularios: getNumValue('formularios', ['formulários', 'Formulários', 'número de formulários']),
+      numeroOnlines: getNumValue('onlines', ['onlines', 'Onlines', 'número de onlines']),
+      callsAgendadas: getNumValue('callsAgendadas', ['calls agendadas', 'Calls Agendadas']),
+      callsRealizadas: getNumValue('callsRealizadas', ['calls realizadas', 'Calls Realizadas']),
       testesVocacionais: 0,
       diagnosticos: 0,
     };
-    if (colaboradorId.startsWith('sheet:')) reg.vendedorNome = nome;
+    
+    if (colaboradorId.startsWith('sheet:')) reg.vendedorNome = nomeFinal;
     registros.push(reg);
   }
+  
+  if (skippedSemVendedor > 0 || skippedSemData > 0) {
+    console.warn(`⚠️ Mapeamento: ${skippedSemVendedor} linhas sem vendedor, ${skippedSemData} linhas sem data de ${rows.length} total`);
+  }
+  
+  console.log(`✅ mapSheetRowsToRegistros: ${registros.length} registros mapeados de ${rows.length} linhas`);
+  
   return registros.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
 }
