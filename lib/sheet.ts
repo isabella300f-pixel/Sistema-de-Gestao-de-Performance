@@ -330,12 +330,16 @@ function normalizeDate(val: string): string {
   return s;
 }
 
-/** Data canônica do registro: prioriza coluna Data (data da atividade na planilha); fallback no Carimbo. Alinhado 100% à planilha. */
+/** Data canônica do registro: coluna Data (atividade); se ano errado na planilha (ex.: 30/01/2025 com carimbo 30/01/2026), usa ano do carimbo para bater totais. */
 export function extractDataFromRow(row: SheetRowRaw): string {
   const dataVal = row.data ? normalizeDate(String(row.data)) : '';
-  if (dataVal) return dataVal;
   const carimboVal = row.carimbo ? parseDate(String(row.carimbo)) : '';
-  return carimboVal;
+  if (!dataVal) return carimboVal;
+  if (!carimboVal) return dataVal;
+  const [dataY, dataM, dataD] = dataVal.split('-').map(Number);
+  const [carY, carM, carD] = carimboVal.split('-').map(Number);
+  if (dataM === carM && dataD === carD && dataY !== carY) return carimboVal;
+  return dataVal;
 }
 
 /** Mapeia linhas da planilha para RegistroDiario. Dados 100% da planilha; data usa coluna Data (atividade), fallback no Carimbo. */

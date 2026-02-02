@@ -87,6 +87,17 @@ export default function GestaoDashboardPage() {
     const [y, m, d] = valor.split('-').map(Number);
     return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
   };
+  const normalizarDataFiltro = (s: string): string => {
+    const t = (s || '').trim();
+    if (!t) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+    const ddmmyyyy = t.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (ddmmyyyy) {
+      const [, d, m, y] = ddmmyyyy;
+      return `${y}-${m!.padStart(2, '0')}-${d!.padStart(2, '0')}`;
+    }
+    return t;
+  };
   // Usar data local (evita bug de timezone: new Date('2025-12-01') vira 30/11 em UTC-3)
   const parseAnoMesLocal = (anoMes: string): Date => {
     const [y, m] = anoMes.split('-').map(Number);
@@ -364,40 +375,22 @@ export default function GestaoDashboardPage() {
   // Aplicar filtros do dashboard (Vendedor, Dia da Semana, Período)
   const registrosFiltrados = (() => {
     let list = [...registrosDiarios];
-    
-    // Debug: log dos dados antes dos filtros
-    if (list.length > 0 && !filterDataInicio && !filterDataFim) {
-      console.log(`📋 Total de registros antes dos filtros: ${list.length}`);
-      const datas = list.map(r => r.data).sort();
-      if (datas.length > 0) {
-        console.log(`📅 Range disponível: ${datas[0]} até ${datas[datas.length - 1]}`);
-      }
+    let inicio = normalizarDataFiltro(filterDataInicio?.trim() || '');
+    let fim = normalizarDataFiltro(filterDataFim?.trim() || '');
+    if (inicio && fim && inicio > fim) {
+      [inicio, fim] = [fim, inicio];
     }
     
     if (filterVendedor) {
       list = list.filter(r => r.colaboradorId === filterVendedor);
     }
-    // Comparação por string YYYY-MM-DD para evitar bugs de timezone
-    if (filterDataInicio) {
-      const antes = list.length;
-      list = list.filter(r => r.data >= filterDataInicio);
-      console.log(`🔍 Filtro data início (${filterDataInicio}): ${antes} → ${list.length} registros`);
-    }
-    if (filterDataFim) {
-      const antes = list.length;
-      list = list.filter(r => r.data <= filterDataFim);
-      console.log(`🔍 Filtro data fim (${filterDataFim}): ${antes} → ${list.length} registros`);
-    }
+    if (inicio) list = list.filter(r => r.data >= inicio);
+    if (fim) list = list.filter(r => r.data <= fim);
     if (filterDiaSemana) {
       list = list.filter(r => r.diaSemana === filterDiaSemana);
     }
     
     // Debug: log dos dados após os filtros
-    if (list.length === 0 && registrosDiarios.length > 0) {
-      console.warn(`⚠️ Nenhum registro após aplicar filtros! Total disponível: ${registrosDiarios.length}`);
-      console.warn(`   Filtros aplicados: início=${filterDataInicio}, fim=${filterDataFim}, vendedor=${filterVendedor || 'todos'}`);
-    }
-    
     return list;
   })();
 
@@ -847,19 +840,10 @@ export default function GestaoDashboardPage() {
                 setFilterValorMetrica('numeroLigacoes');
                 setFilterVendedor('');
                 setFilterDiaSemana('');
-                if (registrosDiarios.length > 0) {
-                  const datas = registrosDiarios.map(r => r.data).sort();
-                  if (datas.length > 0) {
-                    setFilterDataInicio(datas[0]);
-                    setFilterDataFim(datas[datas.length - 1]);
-                  } else {
-                    setFilterDataInicio(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-                    setFilterDataFim(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
-                  }
-                } else {
-                  setFilterDataInicio(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-                  setFilterDataFim(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
-                }
+                const inicioMes = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+                const fimMes = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+                setFilterDataInicio(inicioMes);
+                setFilterDataFim(fimMes);
               }}
               className="flex-1 px-4 py-2 bg-gray-700 border border-gray-500 rounded-md text-gray-300 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
