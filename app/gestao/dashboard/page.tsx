@@ -538,22 +538,6 @@ export default function GestaoDashboardPage() {
         </button>
       </div>
 
-      {/* Alerta se há dados mas nenhum após filtros */}
-      {registrosDiarios.length > 0 && registrosFiltrados.length === 0 && (
-        <div className="card-white p-4 bg-yellow-500/10 border border-yellow-500/50">
-          <p className="text-yellow-400 font-medium">
-            ⚠️ Atenção: Há {registrosDiarios.length} registros carregados, mas nenhum corresponde aos filtros aplicados.
-          </p>
-          <p className="text-yellow-300 text-sm mt-2">
-            Filtros ativos: {filterDataInicio ? `De ${filterDataInicio}` : 'Sem data início'} até {filterDataFim ? filterDataFim : 'sem data fim'}
-            {filterVendedor && ` | Vendedor: ${colaboradores.find(c => c.id === filterVendedor)?.name || filterVendedor}`}
-          </p>
-          <p className="text-yellow-300 text-sm mt-1">
-            Dica: Clique em "Limpar filtros" ou ajuste as datas para o período dos dados disponíveis.
-          </p>
-        </div>
-      )}
-
       {/* Filtros */}
       <div className="card-white p-4 sm:p-6">
         <h2 className="text-sm font-semibold text-gray-300 mb-4">Filtros</h2>
@@ -802,13 +786,13 @@ export default function GestaoDashboardPage() {
               </div>
             )}
           </div>
-          <div className="flex items-end gap-2">
+          <div className="col-span-full flex flex-wrap items-center gap-2 min-w-0 mt-1">
             <button
               type="button"
               onClick={() => {
                 // Pesquisar: filtros já são reativos aos valores dos inputs
               }}
-              className="flex-1 px-4 py-2 bg-blue-600 border border-blue-500 rounded-md text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 flex items-center justify-center gap-2"
+              className="flex-1 min-w-0 sm:min-w-[120px] px-4 py-2 bg-blue-600 border border-blue-500 rounded-md text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 flex items-center justify-center gap-2 shrink-0"
             >
               <Search size={18} />
               Pesquisar
@@ -824,7 +808,7 @@ export default function GestaoDashboardPage() {
                 setFilterDataInicio(inicioMes);
                 setFilterDataFim(fimMes);
               }}
-              className="flex-1 px-4 py-2 bg-gray-700 border border-gray-500 rounded-md text-gray-300 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="flex-1 min-w-0 sm:min-w-[120px] px-4 py-2 bg-gray-700 border border-gray-500 rounded-md text-gray-300 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 shrink-0"
             >
               Limpar filtros
             </button>
