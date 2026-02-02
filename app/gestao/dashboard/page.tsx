@@ -21,8 +21,8 @@ export default function GestaoDashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [dadosDaPlanilha, setDadosDaPlanilha] = useState(true); // true = dados da planilha carregados, false = planilha indisponível
   const [filterVendedor, setFilterVendedor] = useState<string>('');
-  const [filterDataInicio, setFilterDataInicio] = useState<string>(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'));
-  const [filterDataFim, setFilterDataFim] = useState<string>(() => format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [filterDataInicio, setFilterDataInicio] = useState<string>('');
+  const [filterDataFim, setFilterDataFim] = useState<string>('');
   const [filterDiaSemana, setFilterDiaSemana] = useState<string>('');
   // Valor da métrica a avaliar nos gráficos (ligações, atendidas, aberturas, etc.)
   const METRICAS_OPCOES: { value: keyof RegistroDiario; label: string }[] = [
@@ -158,9 +158,6 @@ export default function GestaoDashboardPage() {
           setRegistrosDiariosFromSheet(registrosOrdenados);
           setRegistrosDiarios(registrosOrdenados);
           setDadosDaPlanilha(true);
-          
-          // Resetar flag de filtros para reaplicar quando novos dados chegarem
-          setFiltrosInicializados(false);
           
           console.log(`✅ Dados carregados da planilha: ${registrosOrdenados.length} registros`);
           const datas = registrosOrdenados.map(r => r.data).sort();
@@ -805,8 +802,7 @@ export default function GestaoDashboardPage() {
             <button
               type="button"
               onClick={() => {
-                // Pesquisar: reaplica os filtros (já são reativos; força re-render se necessário)
-                setFiltrosInicializados((v) => v);
+                // Pesquisar: filtros já são reativos aos valores dos inputs
               }}
               className="flex-1 px-4 py-2 bg-blue-600 border border-blue-500 rounded-md text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 flex items-center justify-center gap-2"
             >
