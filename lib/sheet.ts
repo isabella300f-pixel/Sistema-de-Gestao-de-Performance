@@ -187,18 +187,63 @@ export function parseSheetValuesFromApi(values: string[][]): SheetRowRaw[] {
   return rows;
 }
 
-/** Detecta separador: o que produz mais colunas no cabeçalho (TAB comum em PT-BR; servidor pode devolver vírgula). */
-function detectSeparator(headerLine: string): '\t' | ';' | ',' {
-  const byTab = headerLine.split('\t').length;
-  const bySemi = headerLine.split(';').length;
-  const byComma = headerLine.split(',').length;
-  if (byTab >= bySemi && byTab >= byComma && byTab > 1) return '\t';
-  if (bySemi >= byComma && bySemi > 1) return ';';
-  return ',';
+/**
+ * Parse CSV/TSV respeitando campos entre aspas (RFC 4180): newlines e delimitadores
+ * dentro de "..." são tratados como parte do campo. Delimitador TAB ou vírgula.
+ */
+function parseCSVRows(csv: string, delimiter: '\t' | ',' = '\t'): string[][] {
+  const normalized = csv.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/^\uFEFF/, '');
+  const rows: string[][] = [];
+  let currentRow: string[] = [];
+  let currentField = '';
+  let inQuotes = false;
+  let i = 0;
+  while (i < normalized.length) {
+    const c = normalized[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (normalized[i + 1] === '"') {
+          currentField += '"';
+          i += 2;
+          continue;
+        }
+        inQuotes = false;
+        i++;
+        continue;
+      }
+      currentField += c;
+      i++;
+      continue;
+    }
+    if (c === '"') {
+      inQuotes = true;
+      i++;
+      continue;
+    }
+    if (c === delimiter) {
+      currentRow.push(currentField.trim());
+      currentField = '';
+      i++;
+      continue;
+    }
+    if (c === '\n') {
+      currentRow.push(currentField.trim());
+      currentField = '';
+      if (currentRow.some((cell) => cell.length > 0)) rows.push(currentRow);
+      currentRow = [];
+      i++;
+      continue;
+    }
+    currentField += c;
+    i++;
+  }
+  currentRow.push(currentField.trim());
+  if (currentRow.some((cell) => cell.length > 0)) rows.push(currentRow);
+  return rows;
 }
 
-/** Ordem fixa das colunas quando a 1ª linha do CSV é texto de perguntas do formulário (Google Forms). */
-const FIXED_COLUMN_ORDER: (keyof SheetRowRaw)[] = [
+/** Ordem fixa das 18 colunas da planilha (Google Form): igual ao cabeçalho real. */
+const FIXED_COLUMN_ORDER_18: (keyof SheetRowRaw)[] = [
   'carimbo',
   'data',
   'diaSemana',
@@ -207,69 +252,66 @@ const FIXED_COLUMN_ORDER: (keyof SheetRowRaw)[] = [
   'aberturas',
   'desqualificados',
   'formularios',
-  'vendedor',
   'onlines',
+  'vendedor',
   'callsAgendadas',
   'callsRealizadas',
   'testesVocacionais',
+  'diagnosticos',
+  'avaliacaoPerformance',
+  'sugestaoMelhoria',
+  'metaProximoDia',
+  'etapaFunilFoco',
 ];
 
-/** Verifica se a primeira linha parece ser rótulos/perguntas do formulário em vez de nomes de colunas. */
-function isFormQuestionsRow(parts: string[]): boolean {
-  const first = (parts[0] ?? '').trim().toLowerCase().normalize('NFD').replace(/\u0300-\u036f/g, '');
-  const second = (parts[1] ?? '').trim().toLowerCase().normalize('NFD').replace(/\u0300-\u036f/g, '');
-  if (/numero de diagnosticos|diagnostico/.test(first)) return true;
-  if (/como avalia sua performance|qual sua sugestao|em qual etapa do funil/.test(second)) return true;
-  if (/como avalia|qual a sua meta|pretende direcionar seu foco/.test(first) || /como avalia|qual a sua meta|pretende direcionar/.test(second)) return true;
-  return false;
+function normalizeHeader(h: string): string {
+  return h
+    .replace(/\uFEFF/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\n/g, ' ')
+    .normalize('NFD')
+    .replace(/\u0300-\u036f/g, '')
+    .trim()
+    .toLowerCase();
 }
 
-/** Parse CSV string (primeira linha = cabeçalho ou linha de perguntas do form). Retorna array de objetos com chaves normalizadas. */
+/** Parse CSV string: suporta cabeçalho com campos entre aspas e newlines. Retorna SheetRowRaw[]. */
 export function parseSheetCSV(csv: string): SheetRowRaw[] {
-  const lines = csv
-    .replace(/\r\n/g, '\n')
-    .replace(/\r/g, '\n')
-    .replace(/^\uFEFF/, '')
-    .trim()
-    .split('\n');
-  if (lines.length < 2) return [];
+  let allRows = parseCSVRows(csv, '\t');
+  if (allRows.length >= 1 && allRows[0].length <= 1) allRows = parseCSVRows(csv, ',');
+  if (allRows.length < 2) return [];
 
-  const firstLine = lines[0];
-  const sep = detectSeparator(firstLine);
-  const firstRowParts = firstLine.split(sep).map((h) => h.trim().replace(/^"|"$/g, ''));
+  const headerRow = allRows[0];
+  const numCols = Math.max(headerRow.length, FIXED_COLUMN_ORDER_18.length);
+  const keys: (keyof SheetRowRaw)[] = [];
 
-  let dataStartIndex: number;
-  let keys: (keyof SheetRowRaw)[];
-
-  const firstRowNormalized = firstRowParts.map((h) =>
-    h.replace(/\uFEFF/g, '').replace(/\s+/g, ' ').normalize('NFD').replace(/\u0300-\u036f/g, '').trim().toLowerCase()
-  );
-  const hasRealVendedorHeader = firstRowNormalized.some(
+  const headerNormalized = headerRow.map(normalizeHeader);
+  const hasVendedor = headerNormalized.some(
     (h) => h === 'vendedor' || (HEADER_ALIASES[h] ?? HEADER_ALIASES[h.replace(/[^a-z0-9]/g, '')]) === 'vendedor'
   );
-  const looksLikeFormQuestions = isFormQuestionsRow(firstRowParts);
 
-  if (looksLikeFormQuestions || (!hasRealVendedorHeader && firstRowParts.length >= 10)) {
-    dataStartIndex = 1;
-    keys = [...FIXED_COLUMN_ORDER];
+  if (hasVendedor && headerNormalized.length >= 10) {
+    for (let idx = 0; idx < numCols; idx++) {
+      const h = headerNormalized[idx] ?? '';
+      const alias = HEADER_ALIASES[h] ?? HEADER_ALIASES[h.replace(/[^a-z0-9]/g, '')];
+      keys.push(alias ?? (h ? (h as keyof SheetRowRaw) : (FIXED_COLUMN_ORDER_18[idx] as keyof SheetRowRaw)));
+    }
   } else {
-    dataStartIndex = 1;
-    keys = firstRowNormalized.map(
-      (h) => HEADER_ALIASES[h] ?? HEADER_ALIASES[h.replace(/[^a-z0-9]/g, '')] ?? (h as keyof SheetRowRaw)
-    );
+    for (let idx = 0; idx < numCols; idx++) {
+      keys.push(FIXED_COLUMN_ORDER_18[idx] ?? (`col${idx}` as keyof SheetRowRaw));
+    }
   }
 
   const rows: SheetRowRaw[] = [];
-  for (let i = dataStartIndex; i < lines.length; i++) {
-    const line = lines[i];
-    const values = line.split(sep).map((v) => v.trim().replace(/^"|"$/g, '').replace(/\uFEFF/g, ''));
+  for (let r = 1; r < allRows.length; r++) {
+    const values = allRows[r];
     const row: Record<string, string | number> = {};
     keys.forEach((key, idx) => {
-      if (!key) return;
-      const val = values[idx];
-      if (key === 'data') row[key] = parseDate(val ?? '');
-      else if (key === 'carimbo') row[key] = (val ?? '').trim();
-      else if (key === 'desqualificados') row[key] = parseDesqualificados(val ?? '');
+      if (!key || key.startsWith('col')) return;
+      const val = values[idx] ?? '';
+      if (key === 'data') row[key] = parseDate(val);
+      else if (key === 'carimbo') row[key] = val.trim();
+      else if (key === 'desqualificados') row[key] = parseDesqualificados(val);
       else if (
         key === 'ligacoes' ||
         key === 'atendidas' ||
@@ -281,8 +323,8 @@ export function parseSheetCSV(csv: string): SheetRowRaw[] {
         key === 'testesVocacionais' ||
         key === 'diagnosticos'
       )
-        row[key] = parseNumber(val ?? '');
-      else row[key] = (val ?? '').trim();
+        row[key] = parseNumber(val);
+      else row[key] = val.trim();
     });
     rows.push(row as SheetRowRaw);
   }
