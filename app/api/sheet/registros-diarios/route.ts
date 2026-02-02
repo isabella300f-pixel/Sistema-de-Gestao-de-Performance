@@ -6,8 +6,9 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 const NO_CACHE_HEADERS = {
-  'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+  'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0, proxy-revalidate',
   Pragma: 'no-cache',
+  Expires: '0',
 } as const;
 
 const FETCH_HEADERS = {
@@ -18,8 +19,9 @@ const FETCH_HEADERS = {
 
 /**
  * GET /api/sheet/registros-diarios
- * Busca os dados atualizados da planilha.
- * Prioridade: 1) Google Sheets API v4 (se API_KEY + SPREADSHEET_ID configurados) 2) URL publicada
+ * Busca os dados atualizados da planilha — sempre dinâmico, sem cache.
+ * Retorna exatamente o que está na planilha; sem dados inventados.
+ * Prioridade: 1) Google Sheets API v4 (se configurado) 2) URL publicada (CSV).
  */
 export const maxDuration = 30;
 

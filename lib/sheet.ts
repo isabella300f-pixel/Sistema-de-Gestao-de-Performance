@@ -180,14 +180,15 @@ function normalizeDate(val: string): string {
   return s;
 }
 
+/** Data canônica do registro: prioriza Carimbo de data/hora (momento real do envio); fallback na coluna Data. */
 function extractDataFromRow(row: SheetRowRaw): string {
-  const dataVal = row.data ? normalizeDate(String(row.data)) : '';
-  if (dataVal) return dataVal;
   const carimboVal = row.carimbo ? parseDate(String(row.carimbo)) : '';
-  return carimboVal;
+  if (carimboVal) return carimboVal;
+  const dataVal = row.data ? normalizeDate(String(row.data)) : '';
+  return dataVal;
 }
 
-/** Mapeia linhas da planilha para RegistroDiario. Inclui TODAS as linhas com vendedor e data válidos (vendedores não mapeados usam vendedorNome). */
+/** Mapeia linhas da planilha para RegistroDiario. Dados vêm somente da planilha; data usa Carimbo de data/hora quando existir (fonte confiável). */
 export function mapSheetRowsToRegistros(
   rows: SheetRowRaw[],
   getColaboradorId: (nome: string) => string | null

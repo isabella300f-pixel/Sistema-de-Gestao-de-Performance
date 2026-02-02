@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { RegistroDiario, Colaborador } from '@/types';
-import { getAllRegistrosDiarios, getColaboradoresByGestor, getUserById, pesquisarRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet, initializeRegistrosDiarios } from '@/lib/data';
+import { getAllRegistrosDiarios, getColaboradoresByGestor, getUserById, pesquisarRegistrosDiarios, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
 import { mapSheetRowsToRegistros } from '@/lib/sheet';
 import { formatDate } from '@/lib/utils';
 import { Search, Download, ChevronLeft, ChevronRight, RefreshCw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
@@ -84,10 +84,10 @@ export default function GestorRegistrosDiariosPage() {
             }
           }
         } catch (_) {}
-        if (!dadosCarregados) initializeRegistrosDiarios();
+        if (!dadosCarregados) setRegistrosDiariosFromSheet([]);
       } catch (error) {
         console.error('Erro ao carregar dados:', error);
-        initializeRegistrosDiarios();
+        setRegistrosDiariosFromSheet([]);
       } finally {
         setLoading(false);
       }
@@ -109,7 +109,7 @@ export default function GestorRegistrosDiariosPage() {
         }
       }
     } catch (_) {}
-    initializeRegistrosDiarios();
+    setRegistrosDiariosFromSheet([]);
     return false;
   };
 
@@ -246,7 +246,7 @@ export default function GestorRegistrosDiariosPage() {
         <div>
           <h1 className="text-3xl font-bold text-white">Registros Diários</h1>
           <p className="mt-2 text-gray-300">
-            Pesquise na planilha da sua equipe. Defina os filtros e clique em Pesquisar. Quando a planilha estiver indisponível, são exibidos dados de exemplo.
+            Dados exatamente da planilha — atualização automática ao recarregar ou ao clicar em Atualizar dados.
           </p>
         </div>
         <button
