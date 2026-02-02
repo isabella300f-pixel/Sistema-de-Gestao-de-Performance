@@ -140,20 +140,20 @@ export async function getContaAzulAccessToken(
       }
     }
 
-    // MÉTODO 2: Tentar password grant (username/password) - PRIORIDADE para OAuth completo
+    // MÉTODO 2: Tentar password grant (username/password) com Authorization Basic (como no refresh_token)
     if (username && password && clientId && clientSecret) {
       try {
         console.log('🔄 Tentando autenticação via password grant (OAuth)...');
+        const authHeader = getBasicAuthHeader(clientId, clientSecret);
         const response = await fetch(CONTA_AZUL_AUTH_URL, {
           method: 'POST',
           headers: {
+            'Authorization': authHeader,
             'Content-Type': 'application/x-www-form-urlencoded',
             'Accept': 'application/json',
           },
           body: new URLSearchParams({
             grant_type: 'password',
-            client_id: clientId,
-            client_secret: clientSecret,
             username: username,
             password: password,
             scope: 'sales financial',
