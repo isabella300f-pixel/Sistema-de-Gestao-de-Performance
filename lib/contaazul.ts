@@ -78,23 +78,69 @@ export interface ContaAzulCategory {
 }
 
 /**
+ * Gera Authorization Basic header (base64 de client_id:client_secret)
+ */
+function getBasicAuthHeader(clientId: string, clientSecret: string): string {
+  const credentials = `${clientId}:${clientSecret}`;
+  return `Basic ${Buffer.from(credentials).toString('base64')}`;
+}
+
+/**
  * Obtém token de acesso usando múltiplos métodos OAuth 2.0
- * Tenta: 1) Token manual (variável de ambiente), 2) Password grant, 3) Client credentials, 4) Authorization code
+ * Tenta: 1) Token manual, 2) Refresh token, 3) Authorization Basic + refresh_token, 4) Password grant, 5) Client credentials
  */
 export async function getContaAzulAccessToken(
   clientId: string,
   clientSecret: string,
   username?: string,
   password?: string,
-  manualToken?: string
+  manualToken?: string,
+  refreshToken?: string,
+  basicAuth?: string
 ): Promise<string | null> {
   // MÉTODO 0: Usar token manual se fornecido (para testes)
   if (manualToken) {
     console.log('✅ Usando token manual fornecido');
     return manualToken;
   }
+
   try {
-    // MÉTODO 1: Tentar password grant (username/password) - para contas de teste
+    // MÉTODO 1: Tentar refresh_token com Authorization Basic (método recomendado para apps de desenvolvimento)
+    if (refreshToken) {
+      try {
+        const authHeader = basicAuth || getBasicAuthHeader(clientId, clientSecret);
+        const response = await fetch(CONTA_AZUL_AUTH_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json',
+          },
+          body: new URLSearchParams({
+            grant_type: 'refresh_token',
+            refresh_token: refreshToken,
+          }),
+        });
+
+        if (response.ok) {
+          const data: ContaAzulTokenResponse = await response.json();
+          console.log('✅ Token obtido via refresh_token');
+          // Armazenar novo refresh_token se fornecido
+          if (data.refresh_token) {
+            // Em produção, salvar no banco de dados ou cache
+            console.log('💾 Novo refresh_token recebido (salve para próximas requisições)');
+          }
+          return data.access_token;
+        } else {
+          const errorText = await response.text();
+          console.warn('Refresh token falhou:', response.status, errorText);
+        }
+      } catch (error) {
+        console.warn('Erro ao tentar refresh_token:', error);
+      }
+    }
+
+    // MÉTODO 2: Tentar password grant (username/password) - para contas de teste
     if (username && password) {
       try {
         const response = await fetch(CONTA_AZUL_AUTH_URL, {
@@ -116,6 +162,10 @@ export async function getContaAzulAccessToken(
         if (response.ok) {
           const data: ContaAzulTokenResponse = await response.json();
           console.log('✅ Token obtido via password grant');
+          if (data.refresh_token) {
+            console.log('💾 Refresh token recebido:', data.refresh_token.substring(0, 20) + '...');
+            console.log('💡 Configure CONTA_AZUL_REFRESH_TOKEN para renovação automática');
+          }
           return data.access_token;
         } else {
           const errorText = await response.text();
@@ -126,7 +176,7 @@ export async function getContaAzulAccessToken(
       }
     }
 
-    // MÉTODO 2: Tentar client_credentials
+    // MÉTODO 3: Tentar client_credentials
     try {
       const response = await fetch(CONTA_AZUL_AUTH_URL, {
         method: 'POST',
@@ -154,36 +204,13 @@ export async function getContaAzulAccessToken(
       console.warn('Erro ao tentar client_credentials:', error);
     }
 
-    // MÉTODO 3: Tentar authorization_code (último recurso)
-    try {
-      const response = await fetch(CONTA_AZUL_AUTH_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': 'application/json',
-        },
-        body: new URLSearchParams({
-          grant_type: 'authorization_code',
-          client_id: clientId,
-          client_secret: clientSecret,
-          redirect_uri: 'https://contaazul.com',
-        }),
-      });
-
-      if (response.ok) {
-        const data: ContaAzulTokenResponse = await response.json();
-        console.log('✅ Token obtido via authorization_code');
-        return data.access_token;
-      } else {
-        const errorText = await response.text();
-        console.warn('Authorization code falhou:', response.status, errorText);
-      }
-    } catch (error) {
-      console.warn('Erro ao tentar authorization_code:', error);
-    }
-
     // Se todos os métodos falharam
     console.error('❌ Todos os métodos de autenticação falharam');
+    console.error('💡 Dicas:');
+    console.error('   1. Configure CONTA_AZUL_ACCESS_TOKEN (token manual)');
+    console.error('   2. Configure CONTA_AZUL_REFRESH_TOKEN (para renovação)');
+    console.error('   3. Configure CONTA_AZUL_BASIC_AUTH (Authorization Basic header)');
+    console.error('   4. Verifique se as credenciais estão corretas');
     return null;
   } catch (error) {
     console.error('Erro ao obter token do Conta Azul:', error);

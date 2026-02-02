@@ -34,8 +34,14 @@ export async function GET(request: Request) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    // Verificar se há token manual (para testes)
+    // Verificar se há token manual (para testes) - PRIORIDADE 1
     const manualToken = process.env.CONTA_AZUL_ACCESS_TOKEN;
+    
+    // Verificar refresh token - PRIORIDADE 2
+    const refreshToken = process.env.CONTA_AZUL_REFRESH_TOKEN;
+    
+    // Verificar Authorization Basic header - PRIORIDADE 3
+    const basicAuth = process.env.CONTA_AZUL_BASIC_AUTH;
     
     // Obter credenciais do ambiente
     const clientId = process.env.CONTA_AZUL_CLIENT_ID || '13i92mrduirpqcdctqp9q1vr9c';
@@ -45,20 +51,26 @@ export async function GET(request: Request) {
     const password = process.env.CONTA_AZUL_PASSWORD || 'a948e6e2-47da-410e-9646-0019c66f1503';
 
     // Se não houver token manual, precisa das credenciais
-    if (!manualToken && (!clientId || !clientSecret)) {
+    if (!manualToken && !refreshToken && (!clientId || !clientSecret)) {
       return NextResponse.json(
-        { error: 'Credenciais do Conta Azul não configuradas. Configure CONTA_AZUL_ACCESS_TOKEN (token manual) ou CONTA_AZUL_CLIENT_ID e CONTA_AZUL_CLIENT_SECRET', ok: false },
+        { 
+          error: 'Credenciais do Conta Azul não configuradas', 
+          ok: false,
+          details: 'Configure uma das opções: 1) CONTA_AZUL_ACCESS_TOKEN (token manual), 2) CONTA_AZUL_REFRESH_TOKEN + CONTA_AZUL_BASIC_AUTH, 3) CONTA_AZUL_CLIENT_ID + CONTA_AZUL_CLIENT_SECRET'
+        },
         { status: 500, headers: NO_CACHE_HEADERS }
       );
     }
 
-    // Obter token de acesso - priorizar token manual, depois tentar OAuth
+    // Obter token de acesso - priorizar token manual, depois refresh_token, depois OAuth
     const accessToken = await getContaAzulAccessToken(
       clientId, 
       clientSecret, 
       username, 
       password,
-      manualToken || undefined
+      manualToken || undefined,
+      refreshToken || undefined,
+      basicAuth || undefined
     );
     
     if (!accessToken) {
