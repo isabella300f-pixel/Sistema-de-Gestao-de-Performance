@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:contaazul": "node scripts/test-contaazul-api.js"
   },
   "dependencies": {
     "next": "^14.2.0",

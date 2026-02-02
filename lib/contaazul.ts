@@ -3,7 +3,8 @@
  * Documentação: https://developers.contaazul.com/
  */
 
-const CONTA_AZUL_BASE_URL = 'https://api.contaazul.com/v1';
+// URL da API v2 (correta conforme documentação)
+const CONTA_AZUL_BASE_URL = 'https://api-v2.contaazul.com/v1';
 const CONTA_AZUL_AUTH_URL = 'https://auth.contaazul.com/oauth2/token';
 
 export interface ContaAzulTokenResponse {
@@ -68,16 +69,30 @@ export interface ContaAzulFinancialSummary {
   };
 }
 
+export interface ContaAzulCategory {
+  id: string;
+  name: string;
+  type: 'income' | 'expense';
+  parent_id?: string;
+  color?: string;
+}
+
 /**
  * Obtém token de acesso usando múltiplos métodos OAuth 2.0
- * Tenta: 1) Password grant (username/password), 2) Client credentials, 3) Authorization code
+ * Tenta: 1) Token manual (variável de ambiente), 2) Password grant, 3) Client credentials, 4) Authorization code
  */
 export async function getContaAzulAccessToken(
   clientId: string,
   clientSecret: string,
   username?: string,
-  password?: string
+  password?: string,
+  manualToken?: string
 ): Promise<string | null> {
+  // MÉTODO 0: Usar token manual se fornecido (para testes)
+  if (manualToken) {
+    console.log('✅ Usando token manual fornecido');
+    return manualToken;
+  }
   try {
     // MÉTODO 1: Tentar password grant (username/password) - para contas de teste
     if (username && password) {
@@ -177,6 +192,38 @@ export async function getContaAzulAccessToken(
 }
 
 /**
+ * Busca categorias financeiras (endpoint de teste recomendado)
+ */
+export async function getContaAzulCategories(
+  accessToken: string
+): Promise<ContaAzulCategory[]> {
+  try {
+    const response = await fetch(`${CONTA_AZUL_BASE_URL}/categorias`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Erro ao buscar categorias:', response.status, errorText);
+      return [];
+    }
+
+    const data = await response.json();
+    // A API pode retornar um array direto ou um objeto com propriedade 'categories'
+    if (Array.isArray(data)) {
+      return data;
+    }
+    return data.categories || data.categorias || [];
+  } catch (error) {
+    console.error('Erro ao buscar categorias do Conta Azul:', error);
+    return [];
+  }
+}
+
+/**
  * Busca contas financeiras
  */
 export async function getContaAzulAccounts(
@@ -191,11 +238,16 @@ export async function getContaAzulAccounts(
     });
 
     if (!response.ok) {
-      console.error('Erro ao buscar contas:', await response.text());
+      const errorText = await response.text();
+      console.error('Erro ao buscar contas:', response.status, errorText);
       return [];
     }
 
     const data = await response.json();
+    // A API pode retornar um array direto ou um objeto com propriedade 'accounts'
+    if (Array.isArray(data)) {
+      return data;
+    }
     return data.accounts || [];
   } catch (error) {
     console.error('Erro ao buscar contas do Conta Azul:', error);

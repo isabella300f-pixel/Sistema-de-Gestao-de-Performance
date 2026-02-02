@@ -42,10 +42,19 @@ interface ContaAzulSalesData {
   amount: number;
 }
 
+interface ContaAzulCategory {
+  id: string;
+  name: string;
+  type: 'income' | 'expense';
+  parent_id?: string;
+  color?: string;
+}
+
 export default function ContaAzulDashboardPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [categories, setCategories] = useState<ContaAzulCategory[]>([]);
   const [accounts, setAccounts] = useState<ContaAzulAccount[]>([]);
   const [summary, setSummary] = useState<ContaAzulFinancialSummary | null>(null);
   const [cashFlow, setCashFlow] = useState<ContaAzulCashFlow[]>([]);
@@ -57,55 +66,92 @@ export default function ContaAzulDashboardPage() {
       setRefreshing(true);
       setError(null);
 
+      console.log('🔄 Iniciando carregamento de dados do Conta Azul...');
+
       // Calcular período (últimos 30 dias)
       const endDate = format(new Date(), 'yyyy-MM-dd');
       const startDate = format(subDays(new Date(), 30), 'yyyy-MM-dd');
 
+      // Buscar categorias primeiro (endpoint de teste recomendado)
+      console.log('📊 Buscando categorias...');
+      const categoriesRes = await fetch(`/api/contaazul?type=categories&_=${Date.now()}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-store' },
+      });
+      const categoriesData = await categoriesRes.json();
+      if (categoriesData.ok) {
+        console.log('✅ Categorias carregadas:', categoriesData.data?.length || 0);
+        setCategories(categoriesData.data || []);
+      } else {
+        console.error('❌ Erro ao buscar categorias:', categoriesData);
+        if (categoriesRes.status === 401) {
+          setError('Erro de autenticação (401). Verifique se o token está correto na variável CONTA_AZUL_ACCESS_TOKEN');
+        }
+      }
+
       // Buscar contas
+      console.log('💰 Buscando contas...');
       const accountsRes = await fetch(`/api/contaazul?type=accounts&_=${Date.now()}`, {
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-store' },
       });
       const accountsData = await accountsRes.json();
       if (accountsData.ok) {
+        console.log('✅ Contas carregadas:', accountsData.data?.length || 0);
         setAccounts(accountsData.data || []);
+      } else {
+        console.warn('⚠️ Erro ao buscar contas:', accountsData);
       }
 
       // Buscar resumo financeiro
+      console.log('📈 Buscando resumo financeiro...');
       const summaryRes = await fetch(`/api/contaazul?type=summary&_=${Date.now()}`, {
         cache: 'no-store',
         headers: { 'Cache-Control': 'no-store' },
       });
       const summaryData = await summaryRes.json();
       if (summaryData.ok) {
+        console.log('✅ Resumo financeiro carregado');
         setSummary(summaryData.data);
+      } else {
+        console.warn('⚠️ Erro ao buscar resumo:', summaryData);
       }
 
       // Buscar fluxo de caixa
+      console.log('💸 Buscando fluxo de caixa...');
       const cashFlowRes = await fetch(
         `/api/contaazul?type=cashflow&startDate=${startDate}&endDate=${endDate}&_=${Date.now()}`,
         { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } }
       );
       const cashFlowData = await cashFlowRes.json();
       if (cashFlowData.ok) {
+        console.log('✅ Fluxo de caixa carregado:', cashFlowData.data?.length || 0);
         setCashFlow(cashFlowData.data || []);
+      } else {
+        console.warn('⚠️ Erro ao buscar fluxo de caixa:', cashFlowData);
       }
 
       // Buscar vendas
+      console.log('🛒 Buscando vendas...');
       const salesRes = await fetch(
         `/api/contaazul?type=sales&startDate=${startDate}&endDate=${endDate}&_=${Date.now()}`,
         { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } }
       );
       const salesData = await salesRes.json();
       if (salesData.ok) {
+        console.log('✅ Vendas carregadas:', salesData.data?.length || 0);
         setSales(salesData.data || []);
+      } else {
+        console.warn('⚠️ Erro ao buscar vendas:', salesData);
       }
 
       // Verificar se houve erro de autenticação
-      if (accountsRes.status === 401 || summaryRes.status === 401) {
-        setError('Erro de autenticação (401). Verifique as credenciais do Conta Azul. A aplicação pode precisar ser configurada no portal do Conta Azul para usar authorization code flow ao invés de client credentials.');
-      } else if (!accountsData.ok && !summaryData.ok && !cashFlowData.ok && !salesData.ok) {
+      if (categoriesRes.status === 401 || accountsRes.status === 401 || summaryRes.status === 401) {
+        setError('Erro de autenticação (401). Verifique se o token está correto na variável CONTA_AZUL_ACCESS_TOKEN ou se as credenciais OAuth estão configuradas.');
+      } else if (!categoriesData.ok && !accountsData.ok && !summaryData.ok && !cashFlowData.ok && !salesData.ok) {
         setError('Erro ao carregar dados do Conta Azul. Verifique as credenciais e a configuração da aplicação.');
+      } else {
+        console.log('✅ Todos os dados carregados com sucesso!');
       }
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
@@ -255,6 +301,43 @@ export default function ContaAzulDashboardPage() {
         </div>
       )}
 
+      {/* Categorias Financeiras */}
+      {categories.length > 0 && (
+        <div className="card-white p-6">
+          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Categorias Financeiras ({categories.length})
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
+            {categories.map((category) => (
+              <div
+                key={category.id}
+                className={`p-3 rounded-md border ${
+                  category.type === 'income'
+                    ? 'bg-green-500/10 border-green-500/50'
+                    : 'bg-red-500/10 border-red-500/50'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-white font-medium">{category.name}</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {category.type === 'income' ? 'Receita' : 'Despesa'}
+                    </p>
+                  </div>
+                  {category.color && (
+                    <div
+                      className="w-6 h-6 rounded-full border border-gray-600"
+                      style={{ backgroundColor: category.color }}
+                    />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Contas Financeiras */}
       {accounts.length > 0 && (
         <div className="card-white p-6">
@@ -379,11 +462,15 @@ export default function ContaAzulDashboardPage() {
         )}
       </div>
 
-      {!summary && accounts.length === 0 && cashFlow.length === 0 && sales.length === 0 && !error && (
+      {!summary && categories.length === 0 && accounts.length === 0 && cashFlow.length === 0 && sales.length === 0 && !error && (
         <div className="card-white p-12 text-center">
-          <p className="text-gray-400">
+          <p className="text-gray-400 mb-4">
             Nenhum dado disponível. Verifique a conexão com a API do Conta Azul.
           </p>
+          <div className="text-sm text-gray-500 space-y-2">
+            <p>💡 Dica: Configure a variável de ambiente <code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_ACCESS_TOKEN</code> com o token gerado no painel do Conta Azul.</p>
+            <p>Ou configure as credenciais OAuth: <code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_CLIENT_ID</code> e <code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_CLIENT_SECRET</code></p>
+          </div>
         </div>
       )}
     </div>

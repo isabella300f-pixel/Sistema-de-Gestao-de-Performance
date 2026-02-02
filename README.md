@@ -2,6 +2,37 @@
 
 Sistema completo para gestão de reuniões 1:1, avaliação de colaboradores e análise de performance.
 
+## 🔗 Integração com Conta Azul
+
+O sistema possui integração completa com a API do Conta Azul para importação de dados financeiros.
+
+### 📚 Documentação da Integração
+
+- **[Guia Completo](./GUIA_API_CONTA_AZUL.md)** - Passo a passo para configurar a API do zero
+- **[Guia de Testes](./TESTE_API_CONTA_AZUL.md)** - Como testar a integração
+- **[Exemplo de Integração](./EXEMPLO_INTEGRACAO.md)** - Fluxo de dados da API para a aplicação
+- **[Checklist](./CHECKLIST_API_CONTA_AZUL.md)** - Checklist prático de configuração
+- **[Configuração Token Manual](./CONFIGURACAO_TOKEN_MANUAL.md)** - Como usar token manual para testes
+- **[Deploy no Vercel](./DEPLOY_VERCEL.md)** - Como fazer deploy e configurar variáveis no Vercel
+
+### 🚀 Início Rápido
+
+1. Configure as credenciais no portal do Conta Azul
+2. Adicione as variáveis de ambiente em `.env.local`
+3. Teste a autenticação: `npm run test:contaazul`
+4. Acesse `/gestao/contaazul` para ver os dados
+
+### 🌐 Deploy no Vercel
+
+**Sim!** O push para `main` atualiza automaticamente no Vercel, mas você precisa:
+
+1. **Configurar variáveis de ambiente no Vercel** (Settings > Environment Variables)
+2. **Adicionar `CONTA_AZUL_ACCESS_TOKEN`** (token manual) ou credenciais OAuth
+3. **Fazer push**: `git push origin main`
+4. **Aguardar deploy** e testar em produção
+
+📖 **Veja o guia completo**: [DEPLOY_VERCEL.md](./DEPLOY_VERCEL.md)
+
 ## 📋 Funcionalidades
 
 ### Portal do Gestor
