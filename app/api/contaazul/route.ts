@@ -56,13 +56,9 @@ export async function GET(request: Request) {
       else if (type === 'summary') cacheData = await getContaAzulSummaryFromSupabase();
       else if (type === 'cashflow' && startDate && endDate) cacheData = await getContaAzulCashflowFromSupabase(startDate, endDate);
       else if (type === 'sales' && startDate && endDate) cacheData = await getContaAzulSalesFromSupabase(startDate, endDate);
-      if (cacheData == null) {
-        return NextResponse.json(
-          { error: 'Nenhum dado em cache no Supabase para este tipo/período.', ok: false, fromCache: true },
-          { status: 404, headers: NO_CACHE_HEADERS }
-        );
-      }
-      return NextResponse.json({ data: cacheData, ok: true, fromCache: true }, { headers: NO_CACHE_HEADERS });
+      // Sempre 200: dados vazios quando não há cache (evita 404 e dashboard trata como "sem dados")
+      const data = cacheData ?? (type === 'summary' ? null : []);
+      return NextResponse.json({ data, ok: true, fromCache: true, empty: cacheData == null }, { headers: NO_CACHE_HEADERS });
     }
 
     // Credenciais OAuth: client_id + client_secret são obrigatórios

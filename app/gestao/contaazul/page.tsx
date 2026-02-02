@@ -441,14 +441,10 @@ export default function ContaAzulDashboardPage() {
           <p className="text-gray-400 mb-4">
             Nenhum dado disponível. Verifique a conexão com a API do Conta Azul.
           </p>
-          <div className="text-sm text-gray-500 space-y-2">
-            <p>💡 Configure as 4 variáveis OAuth no Vercel:</p>
-            <ul className="list-disc list-inside space-y-1 ml-4">
-              <li><code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_CLIENT_ID</code></li>
-              <li><code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_CLIENT_SECRET</code></li>
-              <li><code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_USERNAME</code></li>
-              <li><code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_PASSWORD</code></li>
-            </ul>
+          <div className="text-sm text-gray-500 space-y-3 max-w-lg mx-auto text-left">
+            <p>💡 <strong>Recomendado (app de desenvolvimento):</strong> use <code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_REFRESH_TOKEN</code> + <code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_CLIENT_ID</code> + <code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_CLIENT_SECRET</code>. O app Conta Azul costuma retornar 401 com usuário/senha; o refresh_token resolve. Veja <strong>VARIAVEIS_CONTA_AZUL.md</strong> ou <strong>CONTAAZUL_E_SUPABASE.md</strong> para obter o refresh_token (fluxo OAuth no navegador).</p>
+            <p>Alternativa (se o app permitir): <code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_USERNAME</code> e <code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_PASSWORD</code>.</p>
+            <p className="text-amber-400/90">Confira também se <code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_CLIENT_SECRET</code> está exato (letra &quot;l&quot; em lefq, ldup, bal4 — não o número 1).</p>
           </div>
         </div>
       )}

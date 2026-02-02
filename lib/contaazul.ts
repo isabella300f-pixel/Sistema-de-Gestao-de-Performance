@@ -140,44 +140,57 @@ export async function getContaAzulAccessToken(
       }
     }
 
-    // MÉTODO 2: Tentar password grant (username/password) com Authorization Basic (como no refresh_token)
+    // MÉTODO 2: Tentar password grant (username/password)
+    // Algumas APIs aceitam Basic + body; outras exigem client_id/client_secret no body também.
     if (username && password && clientId && clientSecret) {
-      try {
-        console.log('🔄 Tentando autenticação via password grant (OAuth)...');
-        const authHeader = getBasicAuthHeader(clientId, clientSecret);
-        const response = await fetch(CONTA_AZUL_AUTH_URL, {
-          method: 'POST',
-          headers: {
-            'Authorization': authHeader,
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Accept': 'application/json',
-          },
-          body: new URLSearchParams({
+      for (const useBodyCredentials of [false, true]) {
+        try {
+          console.log('🔄 Tentando password grant (OAuth)...', useBodyCredentials ? '(client_id/secret no body)' : '(só Basic)');
+          const authHeader = getBasicAuthHeader(clientId, clientSecret);
+          const bodyParams: Record<string, string> = {
             grant_type: 'password',
-            username: username,
-            password: password,
+            username,
+            password,
             scope: 'sales financial',
-          }),
-        });
-
-        if (response.ok) {
-          const data: ContaAzulTokenResponse = await response.json();
-          console.log('✅ Token obtido via password grant (OAuth completo)');
-          if (data.refresh_token) {
-            console.log('💾 Refresh token recebido:', data.refresh_token.substring(0, 20) + '...');
-            console.log('💡 Dica: Configure CONTA_AZUL_REFRESH_TOKEN no Vercel para renovação automática');
-            console.log('💡 Valor do refresh_token:', data.refresh_token);
+          };
+          if (useBodyCredentials) {
+            bodyParams.client_id = clientId;
+            bodyParams.client_secret = clientSecret;
           }
-          return data.access_token;
-        } else {
+          const response = await fetch(CONTA_AZUL_AUTH_URL, {
+            method: 'POST',
+            headers: {
+              'Authorization': authHeader,
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'Accept': 'application/json',
+            },
+            body: new URLSearchParams(bodyParams),
+          });
+
+          if (response.ok) {
+            const data: ContaAzulTokenResponse = await response.json();
+            console.log('✅ Token obtido via password grant');
+            if (data.refresh_token) {
+              console.log('💾 Refresh token recebido. Dica: configure CONTA_AZUL_REFRESH_TOKEN no Vercel.');
+            }
+            return data.access_token;
+          }
           const errorText = await response.text();
-          console.warn('❌ Password grant falhou:', response.status);
-          console.warn('   Resposta:', errorText);
-          // Não retorna null aqui, deixa tentar client_credentials
+          console.warn('❌ Password grant falhou:', response.status, errorText);
+          try {
+            const errJson = JSON.parse(errorText);
+            if (errJson.error === 'invalid_grant' || errJson.error_description?.includes('grant')) {
+              console.warn('   → App pode não permitir password grant. Use CONTA_AZUL_REFRESH_TOKEN (veja VARIAVEIS_CONTA_AZUL.md).');
+            }
+            if (errJson.error === 'invalid_client') {
+              console.warn('   → Verifique CONTA_AZUL_CLIENT_SECRET (letra "l" em lefq, ldup, bal4 — não o número 1).');
+            }
+          } catch (_) {}
+          if (useBodyCredentials) break;
+        } catch (error) {
+          console.warn('❌ Erro password grant:', error);
+          if (useBodyCredentials) break;
         }
-      } catch (error) {
-        console.warn('❌ Erro ao tentar password grant:', error);
-        // Não retorna null aqui, deixa tentar client_credentials
       }
     }
 

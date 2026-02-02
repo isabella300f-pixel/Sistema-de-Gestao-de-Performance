@@ -348,15 +348,16 @@ export default function GestaoDashboardPage() {
     { name: 'Baixo Risco', value: distribuicaoRisco.baixo, color: '#10b981' },
   ];
 
+  // Validação: data final não pode ser anterior à data inicial
+  const dataInvalida = !!(filterDataInicio && filterDataFim && filterDataFim < filterDataInicio);
+
   // Aplicar filtros do dashboard (Vendedor, Dia da Semana, Período)
   const registrosFiltrados = (() => {
+    if (dataInvalida) return []; // Não permitir período inválido
     let list = [...registrosDiarios];
-    let inicio = normalizarDataFiltro(filterDataInicio?.trim() || '');
-    let fim = normalizarDataFiltro(filterDataFim?.trim() || '');
-    if (inicio && fim && inicio > fim) {
-      [inicio, fim] = [fim, inicio];
-    }
-    
+    const inicio = normalizarDataFiltro(filterDataInicio?.trim() || '');
+    const fim = normalizarDataFiltro(filterDataFim?.trim() || '');
+
     if (filterVendedor) {
       list = list.filter(r => r.colaboradorId === filterVendedor);
     }
@@ -365,8 +366,6 @@ export default function GestaoDashboardPage() {
     if (filterDiaSemana) {
       list = list.filter(r => r.diaSemana === filterDiaSemana);
     }
-    
-    // Debug: log dos dados após os filtros
     return list;
   })();
 
@@ -398,15 +397,25 @@ export default function GestaoDashboardPage() {
   // Conv Calls Realizadas = % das calls agendadas que foram realizadas
   const convCallsRealizadas = totalCallsAgendadas > 0 ? ((totalCallsRealizadas / totalCallsAgendadas) * 100).toFixed(2) : '0.00';
 
-  // Preparar dados para gráfico de linha por vendedor (usando métrica selecionada)
-  const registrosPorVendedor = colaboradores.map(col => {
-    const regsColab = registrosFiltrados.filter(r => r.colaboradorId === col.id);
-    const totalPorVendedor = regsColab.reduce((sum, r) => sum + getValorMetrica(r), 0);
-    return {
-      vendedor: col.name,
-      total: totalPorVendedor,
-    };
-  }).sort((a, b) => b.total - a.total).slice(0, 10);
+  // Vendedores que têm pelo menos um registro no período (todos para os gráficos)
+  const vendedoresComDados = (() => {
+    const ids = [...new Set(registrosFiltrados.map(r => r.colaboradorId))];
+    return ids
+      .map(id => colaboradores.find(c => c.id === id))
+      .filter((c): c is Colaborador => !!c)
+      .map(col => {
+        const regsColab = registrosFiltrados.filter(r => r.colaboradorId === col.id);
+        const total = regsColab.reduce((sum, r) => sum + getValorMetrica(r), 0);
+        return { col, total, regs: regsColab };
+      })
+      .sort((a, b) => b.total - a.total);
+  })();
+
+  // Preparar dados para gráfico de linha por vendedor (todos os vendedores do período)
+  const registrosPorVendedor = vendedoresComDados.map(({ col, total }) => ({
+    vendedor: col.name,
+    total,
+  }));
 
   // Preparar dados para gráfico de linha temporal (métrica selecionada)
   const registrosPorData = registrosFiltrados.reduce((acc, reg) => {
@@ -422,33 +431,28 @@ export default function GestaoDashboardPage() {
     .sort((a, b) => new Date(a.data).getTime() - new Date(b.data).getTime())
     .slice(-90);
 
-  // Preparar dados para gráfico de linha por vendedor (múltiplas séries, métrica selecionada)
-  const topVendedores = colaboradores.map(col => {
-    const regsColab = registrosFiltrados.filter(r => r.colaboradorId === col.id);
-    const total = regsColab.reduce((sum, r) => sum + getValorMetrica(r), 0);
-    return { col, total, regs: regsColab };
-  }).sort((a, b) => b.total - a.total).slice(0, 4);
+  // Todos os vendedores com dados no período (gráfico por dia por vendedor e barras empilhadas)
+  const topVendedores = vendedoresComDados;
 
   // Preparar dados para gráfico de barras empilhadas por dia da semana (métrica selecionada)
   const chartDataPorDiaSemana = diasSemana.map(dia => {
-    const item: any = { dia };
+    const item: Record<string, string | number> = { dia };
     topVendedores.forEach(({ col }) => {
       const regs = registrosFiltrados.filter(r => r.colaboradorId === col.id && r.diaSemana === dia);
       const total = regs.reduce((sum, r) => sum + getValorMetrica(r), 0);
       item[col.name.split(' ').slice(0, 2).join(' ')] = total;
     });
     return item;
-  }).filter(d => Object.values(d).some((v: any) => typeof v === 'number' && v > 0));
+  }).filter(d => Object.values(d).some((v): v is number => typeof v === 'number' && v > 0));
 
-  // Preparar dados para gráfico de rosca (métrica selecionada por vendedor)
-  const distribLigacoesPorVendedor = colaboradores.map(col => {
-    const regsColab = registrosFiltrados.filter(r => r.colaboradorId === col.id);
-    const total = regsColab.reduce((sum, r) => sum + getValorMetrica(r), 0);
-    return {
+  // Preparar dados para gráfico de rosca (todos os vendedores do período com valor > 0)
+  const distribLigacoesPorVendedor = vendedoresComDados
+    .filter(d => d.total > 0)
+    .map(({ col, total }) => ({
       name: col.name.split(' ').slice(0, 2).join(' '),
-      value: total
-    };
-  }).filter(d => d.value > 0).sort((a, b) => b.value - a.value).slice(0, 8);
+      value: total,
+    }))
+    .sort((a, b) => b.value - a.value);
 
   // Semanas no formato segunda a domingo (Monday = início da semana)
   const getMonday = (d: Date): string => {
@@ -826,6 +830,12 @@ export default function GestaoDashboardPage() {
             </button>
           </div>
         </div>
+        {dataInvalida && (
+          <p className="mt-3 text-red-400 text-sm font-medium flex items-center gap-2">
+            <AlertTriangle size={18} />
+            Data final não pode ser anterior à data inicial. Ajuste as datas para continuar.
+          </p>
+        )}
       </div>
 
       {/* KPIs dos Registros Diários (respeitando filtros) */}
