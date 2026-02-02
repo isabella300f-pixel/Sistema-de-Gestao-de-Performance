@@ -115,9 +115,15 @@ export default function GestaoDashboardPage() {
       const res = await fetch(`/api/sheet/registros-diarios?_=${bust}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
       const json = await res.json();
       
+      console.log(`🔄 Buscando dados da planilha...`);
+      console.log(`📥 Resposta da API: ok=${json.ok}, data.length=${Array.isArray(json.data) ? json.data.length : 'não é array'}`);
+      
       if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
+        console.log(`📦 Dados brutos recebidos: ${json.data.length} linhas`);
         // DADOS 100% DA PLANILHA - SEM INVENTAR NADA
         const registros = mapSheetRowsToRegistros(json.data, getColaboradorIdByName);
+        console.log(`🗺️ Registros mapeados: ${registros.length}`);
+        
         if (registros.length > 0) {
           // Ordenar por data (mais recente primeiro)
           const registrosOrdenados = registros.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
@@ -134,9 +140,20 @@ export default function GestaoDashboardPage() {
           const datas = registrosOrdenados.map(r => r.data).sort();
           if (datas.length > 0) {
             console.log(`📊 Range de datas: ${datas[0]} até ${datas[datas.length - 1]}`);
+            // Mostrar alguns exemplos de registros
+            console.log(`📝 Primeiros 3 registros:`, registrosOrdenados.slice(0, 3).map(r => ({
+              data: r.data,
+              vendedor: r.colaboradorId,
+              ligacoes: r.numeroLigacoes,
+              atendidas: r.ligacoesAtendidas
+            })));
           }
           return;
+        } else {
+          console.warn(`⚠️ Nenhum registro válido após mapeamento. Dados brutos:`, json.data.slice(0, 3));
         }
+      } else {
+        console.warn(`⚠️ API retornou sem dados: ok=${json.ok}, error=${json.error || 'nenhum'}`);
       }
       
       // Se não há dados da planilha, limpar TUDO
@@ -194,10 +211,18 @@ export default function GestaoDashboardPage() {
         const minDate = datas[0];
         const maxDate = datas[datas.length - 1];
         // FORÇAR aplicação dos filtros na primeira vez - AMBAS as datas
+        // IMPORTANTE: Usar as datas reais dos dados, não datas fixas
         setFilterDataInicio(minDate);
         setFilterDataFim(maxDate);
         setFiltrosInicializados(true);
         console.log(`📅 Filtros aplicados automaticamente: ${minDate} até ${maxDate} (${registrosDiarios.length} registros)`);
+        console.log(`📊 Exemplo de registros:`, registrosDiarios.slice(0, 3).map(r => ({
+          data: r.data,
+          ligacoes: r.numeroLigacoes,
+          atendidas: r.ligacoesAtendidas
+        })));
+      } else {
+        console.warn(`⚠️ Dados carregados mas sem datas válidas`);
       }
     }
   }, [loading, registrosDiarios.length, filtrosInicializados]);
@@ -315,19 +340,40 @@ export default function GestaoDashboardPage() {
   // Aplicar filtros do dashboard (Vendedor, Dia da Semana, Período)
   const registrosFiltrados = (() => {
     let list = [...registrosDiarios];
+    
+    // Debug: log dos dados antes dos filtros
+    if (list.length > 0 && !filterDataInicio && !filterDataFim) {
+      console.log(`📋 Total de registros antes dos filtros: ${list.length}`);
+      const datas = list.map(r => r.data).sort();
+      if (datas.length > 0) {
+        console.log(`📅 Range disponível: ${datas[0]} até ${datas[datas.length - 1]}`);
+      }
+    }
+    
     if (filterVendedor) {
       list = list.filter(r => r.colaboradorId === filterVendedor);
     }
     // Comparação por string YYYY-MM-DD para evitar bugs de timezone
     if (filterDataInicio) {
+      const antes = list.length;
       list = list.filter(r => r.data >= filterDataInicio);
+      console.log(`🔍 Filtro data início (${filterDataInicio}): ${antes} → ${list.length} registros`);
     }
     if (filterDataFim) {
+      const antes = list.length;
       list = list.filter(r => r.data <= filterDataFim);
+      console.log(`🔍 Filtro data fim (${filterDataFim}): ${antes} → ${list.length} registros`);
     }
     if (filterDiaSemana) {
       list = list.filter(r => r.diaSemana === filterDiaSemana);
     }
+    
+    // Debug: log dos dados após os filtros
+    if (list.length === 0 && registrosDiarios.length > 0) {
+      console.warn(`⚠️ Nenhum registro após aplicar filtros! Total disponível: ${registrosDiarios.length}`);
+      console.warn(`   Filtros aplicados: início=${filterDataInicio}, fim=${filterDataFim}, vendedor=${filterVendedor || 'todos'}`);
+    }
+    
     return list;
   })();
 
@@ -473,8 +519,16 @@ export default function GestaoDashboardPage() {
         <div>
           <h1 className="text-3xl font-bold text-white">Dashboard Executivo</h1>
           <p className="mt-2 text-gray-300">
-            {dadosDaPlanilha ? 'Dados exatamente da planilha — atualização automática ao recarregar ou ao clicar em Atualizar dados.' : 'Planilha indisponível ou sem dados. Verifique a publicação da planilha e clique em Atualizar dados.'}
+            {dadosDaPlanilha 
+              ? `Dados exatamente da planilha (${registrosDiarios.length} registros carregados) — atualização automática ao recarregar ou ao clicar em Atualizar dados.`
+              : 'Planilha indisponível ou sem dados. Verifique a publicação da planilha e clique em Atualizar dados.'}
           </p>
+          {registrosDiarios.length > 0 && (
+            <p className="mt-1 text-sm text-blue-400">
+              📊 Registros filtrados: {registrosFiltrados.length} de {registrosDiarios.length} total
+              {filterDataInicio && filterDataFim && ` | Período: ${filterDataInicio} até ${filterDataFim}`}
+            </p>
+          )}
         </div>
         <button
           type="button"
@@ -486,6 +540,22 @@ export default function GestaoDashboardPage() {
           {refreshing ? 'Atualizando...' : 'Atualizar dados'}
         </button>
       </div>
+
+      {/* Alerta se há dados mas nenhum após filtros */}
+      {registrosDiarios.length > 0 && registrosFiltrados.length === 0 && (
+        <div className="card-white p-4 bg-yellow-500/10 border border-yellow-500/50">
+          <p className="text-yellow-400 font-medium">
+            ⚠️ Atenção: Há {registrosDiarios.length} registros carregados, mas nenhum corresponde aos filtros aplicados.
+          </p>
+          <p className="text-yellow-300 text-sm mt-2">
+            Filtros ativos: {filterDataInicio ? `De ${filterDataInicio}` : 'Sem data início'} até {filterDataFim ? filterDataFim : 'sem data fim'}
+            {filterVendedor && ` | Vendedor: ${colaboradores.find(c => c.id === filterVendedor)?.name || filterVendedor}`}
+          </p>
+          <p className="text-yellow-300 text-sm mt-1">
+            Dica: Clique em "Limpar filtros" ou ajuste as datas para o período dos dados disponíveis.
+          </p>
+        </div>
+      )}
 
       {/* Filtros */}
       <div className="card-white p-6">
