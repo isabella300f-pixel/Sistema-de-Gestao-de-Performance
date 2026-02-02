@@ -62,103 +62,70 @@ export default function ContaAzulDashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   const carregarDados = async () => {
+    // Helper: tenta API; se 401/500, tenta cache Supabase
+    const fetchWithCacheFallback = async (url: string) => {
+      const res = await fetch(url, { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
+      const json = await res.json();
+      if (json.ok) return { ...json, status: res.status };
+      if (res.status === 401 || res.status === 500) {
+        const cacheUrl = url.includes('?') ? `${url}&source=cache` : `${url}?source=cache`;
+        const cacheRes = await fetch(cacheUrl, { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
+        const cacheJson = await cacheRes.json();
+        if (cacheJson.ok) return { ...cacheJson, status: cacheRes.status, fromCache: true };
+      }
+      return { ...json, status: res.status };
+    };
+
     try {
       setRefreshing(true);
       setError(null);
 
       console.log('🔄 Iniciando carregamento de dados do Conta Azul...');
 
-      // Calcular período (últimos 30 dias)
       const endDate = format(new Date(), 'yyyy-MM-dd');
       const startDate = format(subDays(new Date(), 30), 'yyyy-MM-dd');
+      const ts = `_=${Date.now()}`;
 
-      // Buscar categorias primeiro (endpoint de teste recomendado)
+      // Buscar categorias
       console.log('📊 Buscando categorias...');
-      const categoriesRes = await fetch(`/api/contaazul?type=categories&_=${Date.now()}`, {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-store' },
-      });
-      const categoriesData = await categoriesRes.json();
+      const categoriesData = await fetchWithCacheFallback(`/api/contaazul?type=categories&${ts}`);
       if (categoriesData.ok) {
-        console.log('✅ Categorias carregadas:', categoriesData.data?.length || 0);
         setCategories(categoriesData.data || []);
-      } else {
-        console.error('❌ Erro ao buscar categorias:', categoriesData);
-        if (categoriesRes.status === 401) {
-          setError('Erro de autenticação (401). Configure CONTA_AZUL_REFRESH_TOKEN no Vercel (recomendado) ou CONTA_AZUL_CLIENT_ID, CONTA_AZUL_CLIENT_SECRET, CONTA_AZUL_USERNAME e CONTA_AZUL_PASSWORD. Veja VARIAVEIS_CONTA_AZUL.md.');
-        }
+        if (categoriesData.fromCache) console.log('✅ Categorias (cache Supabase)');
+      } else if (categoriesData.status === 401) {
+        setError('Erro de autenticação (401). Configure CONTA_AZUL_REFRESH_TOKEN no Vercel (recomendado) ou CONTA_AZUL_USERNAME/PASSWORD. Veja VARIAVEIS_CONTA_AZUL.md.');
       }
 
       // Buscar contas
-      console.log('💰 Buscando contas...');
-      const accountsRes = await fetch(`/api/contaazul?type=accounts&_=${Date.now()}`, {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-store' },
-      });
-      const accountsData = await accountsRes.json();
-      if (accountsData.ok) {
-        console.log('✅ Contas carregadas:', accountsData.data?.length || 0);
-        setAccounts(accountsData.data || []);
-      } else {
-        console.warn('⚠️ Erro ao buscar contas:', accountsData);
-      }
+      const accountsData = await fetchWithCacheFallback(`/api/contaazul?type=accounts&${ts}`);
+      if (accountsData.ok) setAccounts(accountsData.data || []);
 
-      // Buscar resumo financeiro
-      console.log('📈 Buscando resumo financeiro...');
-      const summaryRes = await fetch(`/api/contaazul?type=summary&_=${Date.now()}`, {
-        cache: 'no-store',
-        headers: { 'Cache-Control': 'no-store' },
-      });
-      const summaryData = await summaryRes.json();
-      if (summaryData.ok) {
-        console.log('✅ Resumo financeiro carregado');
-        setSummary(summaryData.data);
-      } else {
-        console.warn('⚠️ Erro ao buscar resumo:', summaryData);
-      }
+      // Buscar resumo
+      const summaryData = await fetchWithCacheFallback(`/api/contaazul?type=summary&${ts}`);
+      if (summaryData.ok) setSummary(summaryData.data);
 
       // Buscar fluxo de caixa
-      console.log('💸 Buscando fluxo de caixa...');
-      const cashFlowRes = await fetch(
-        `/api/contaazul?type=cashflow&startDate=${startDate}&endDate=${endDate}&_=${Date.now()}`,
-        { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } }
+      const cashFlowData = await fetchWithCacheFallback(
+        `/api/contaazul?type=cashflow&startDate=${startDate}&endDate=${endDate}&${ts}`
       );
-      const cashFlowData = await cashFlowRes.json();
-      if (cashFlowData.ok) {
-        console.log('✅ Fluxo de caixa carregado:', cashFlowData.data?.length || 0);
-        setCashFlow(cashFlowData.data || []);
-      } else {
-        console.warn('⚠️ Erro ao buscar fluxo de caixa:', cashFlowData);
-      }
+      if (cashFlowData.ok) setCashFlow(cashFlowData.data || []);
 
       // Buscar vendas
-      console.log('🛒 Buscando vendas...');
-      const salesRes = await fetch(
-        `/api/contaazul?type=sales&startDate=${startDate}&endDate=${endDate}&_=${Date.now()}`,
-        { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } }
+      const salesData = await fetchWithCacheFallback(
+        `/api/contaazul?type=sales&startDate=${startDate}&endDate=${endDate}&${ts}`
       );
-      const salesData = await salesRes.json();
-      if (salesData.ok) {
-        console.log('✅ Vendas carregadas:', salesData.data?.length || 0);
-        setSales(salesData.data || []);
-      } else {
-        console.warn('⚠️ Erro ao buscar vendas:', salesData);
-      }
+      if (salesData.ok) setSales(salesData.data || []);
 
-      // Verificar se houve erro de autenticação
-      if (categoriesRes.status === 401 || accountsRes.status === 401 || summaryRes.status === 401) {
-        const resData = categoriesData.ok === false ? categoriesData : accountsData.ok === false ? accountsData : summaryData;
-        const details = (resData as { details?: string })?.details || resData.error || 'Erro de autenticação';
+      // Mensagem de erro só se nada veio da API nem do cache
+      const anyOk = categoriesData.ok || accountsData.ok || summaryData.ok || cashFlowData.ok || salesData.ok;
+      if (!anyOk && categoriesData.status === 401) {
         setError(
-          `Erro de autenticação (401). ` +
-          `Recomendado: configure CONTA_AZUL_REFRESH_TOKEN no Vercel (veja VARIAVEIS_CONTA_AZUL.md para obter o refresh_token). ` +
-          `Alternativa: CONTA_AZUL_CLIENT_ID, CONTA_AZUL_CLIENT_SECRET, CONTA_AZUL_USERNAME e CONTA_AZUL_PASSWORD. Detalhes: ${details}`
+          'Erro de autenticação (401). Configure CONTA_AZUL_REFRESH_TOKEN no Vercel (veja VARIAVEIS_CONTA_AZUL.md) ou CONTA_AZUL_USERNAME e CONTA_AZUL_PASSWORD.'
         );
-      } else if (!categoriesData.ok && !accountsData.ok && !summaryData.ok && !cashFlowData.ok && !salesData.ok) {
-        const firstError = categoriesData.error || accountsData.error || summaryData.error || 'Erro desconhecido';
-        setError(`Erro ao carregar dados do Conta Azul: ${firstError}. Verifique as credenciais OAuth no Vercel.`);
-      } else {
-        console.log('✅ Todos os dados carregados com sucesso!');
+      } else if (!anyOk) {
+        setError(
+          `Erro ao carregar dados do Conta Azul. Verifique as credenciais no Vercel. Se já sincronizou antes, os dados em cache (Supabase) serão usados automaticamente.`
+        );
       }
     } catch (err) {
       console.error('Erro ao carregar dados:', err);

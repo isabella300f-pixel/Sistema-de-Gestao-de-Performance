@@ -7,6 +7,18 @@ import {
   getContaAzulCashFlow,
   getContaAzulSales,
 } from '@/lib/contaazul';
+import {
+  syncContaAzulCategories,
+  syncContaAzulAccounts,
+  syncContaAzulSummary,
+  syncContaAzulCashflow,
+  syncContaAzulSales,
+  getContaAzulCategoriesFromSupabase,
+  getContaAzulAccountsFromSupabase,
+  getContaAzulSummaryFromSupabase,
+  getContaAzulCashflowFromSupabase,
+  getContaAzulSalesFromSupabase,
+} from '@/lib/contaazul-supabase';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -21,11 +33,12 @@ export const maxDuration = 30;
 
 /**
  * GET /api/contaazul
- * Busca dados do Conta Azul
+ * Busca dados do Conta Azul (API ou cache Supabase)
  * Query params:
  * - type: 'categories' | 'accounts' | 'summary' | 'cashflow' | 'sales'
  * - startDate: YYYY-MM-DD (para cashflow e sales)
  * - endDate: YYYY-MM-DD (para cashflow e sales)
+ * - source: 'api' (padrão) | 'cache' (lê apenas do Supabase)
  */
 export async function GET(request: Request) {
   try {
@@ -33,6 +46,24 @@ export async function GET(request: Request) {
     const type = searchParams.get('type') || 'categories';
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const source = searchParams.get('source') || 'api';
+
+    // Leitura apenas do cache Supabase (sem precisar de credenciais Conta Azul)
+    if (source === 'cache') {
+      let cacheData: unknown = null;
+      if (type === 'categories') cacheData = await getContaAzulCategoriesFromSupabase();
+      else if (type === 'accounts') cacheData = await getContaAzulAccountsFromSupabase();
+      else if (type === 'summary') cacheData = await getContaAzulSummaryFromSupabase();
+      else if (type === 'cashflow' && startDate && endDate) cacheData = await getContaAzulCashflowFromSupabase(startDate, endDate);
+      else if (type === 'sales' && startDate && endDate) cacheData = await getContaAzulSalesFromSupabase(startDate, endDate);
+      if (cacheData == null) {
+        return NextResponse.json(
+          { error: 'Nenhum dado em cache no Supabase para este tipo/período.', ok: false, fromCache: true },
+          { status: 404, headers: NO_CACHE_HEADERS }
+        );
+      }
+      return NextResponse.json({ data: cacheData, ok: true, fromCache: true }, { headers: NO_CACHE_HEADERS });
+    }
 
     // Credenciais OAuth: client_id + client_secret são obrigatórios
     const clientId = process.env.CONTA_AZUL_CLIENT_ID;
@@ -106,19 +137,34 @@ export async function GET(request: Request) {
     console.log('✅ Token OAuth obtido com sucesso!');
 
     let data: unknown;
+    let syncedToSupabase = false;
 
     switch (type) {
-      case 'categories':
-        data = await getContaAzulCategories(accessToken);
+      case 'categories': {
+        const categories = await getContaAzulCategories(accessToken);
+        data = categories;
+        const sync = await syncContaAzulCategories(categories);
+        if (sync.ok) syncedToSupabase = true; else console.warn('Sync categories:', sync.error);
         break;
+      }
 
-      case 'accounts':
-        data = await getContaAzulAccounts(accessToken);
+      case 'accounts': {
+        const accounts = await getContaAzulAccounts(accessToken);
+        data = accounts;
+        const sync = await syncContaAzulAccounts(accounts);
+        if (sync.ok) syncedToSupabase = true; else console.warn('Sync accounts:', sync.error);
         break;
+      }
 
-      case 'summary':
-        data = await getContaAzulFinancialSummary(accessToken);
+      case 'summary': {
+        const summary = await getContaAzulFinancialSummary(accessToken);
+        data = summary;
+        if (summary) {
+          const sync = await syncContaAzulSummary(summary);
+          if (sync.ok) syncedToSupabase = true; else console.warn('Sync summary:', sync.error);
+        }
         break;
+      }
 
       case 'cashflow':
         if (!startDate || !endDate) {
@@ -127,7 +173,12 @@ export async function GET(request: Request) {
             { status: 400, headers: NO_CACHE_HEADERS }
           );
         }
-        data = await getContaAzulCashFlow(accessToken, startDate, endDate);
+        {
+          const cashflow = await getContaAzulCashFlow(accessToken, startDate, endDate);
+          data = cashflow;
+          const sync = await syncContaAzulCashflow(cashflow, startDate, endDate);
+          if (sync.ok) syncedToSupabase = true; else console.warn('Sync cashflow:', sync.error);
+        }
         break;
 
       case 'sales':
@@ -137,7 +188,12 @@ export async function GET(request: Request) {
             { status: 400, headers: NO_CACHE_HEADERS }
           );
         }
-        data = await getContaAzulSales(accessToken, startDate, endDate);
+        {
+          const sales = await getContaAzulSales(accessToken, startDate, endDate);
+          data = sales;
+          const sync = await syncContaAzulSales(sales, startDate, endDate);
+          if (sync.ok) syncedToSupabase = true; else console.warn('Sync sales:', sync.error);
+        }
         break;
 
       default:
@@ -147,7 +203,7 @@ export async function GET(request: Request) {
         );
     }
 
-    return NextResponse.json({ data, ok: true }, { headers: NO_CACHE_HEADERS });
+    return NextResponse.json({ data, ok: true, syncedToSupabase }, { headers: NO_CACHE_HEADERS });
   } catch (error) {
     console.error('Erro ao buscar dados do Conta Azul:', error);
     return NextResponse.json(
