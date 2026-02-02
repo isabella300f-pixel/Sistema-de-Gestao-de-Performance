@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { SHEET_CSV_URL, parseSheetCSV, parseSheetValuesFromApi, extractDataFromRow } from '@/lib/sheet';
+import { getSheetCsvUrl, parseSheetCSV, parseSheetValuesFromApi, extractDataFromRow } from '@/lib/sheet';
 import type { SheetRowRaw } from '@/lib/sheet';
 import { getSupabaseServer } from '@/lib/supabase';
 
@@ -51,7 +51,8 @@ async function fetchViaApi(): Promise<{ data: unknown[]; ok: boolean } | null> {
 
 async function fetchViaPublishedUrl(bust: string): Promise<{ data: unknown[]; ok: boolean } | null> {
   try {
-    const url = `${SHEET_CSV_URL}${SHEET_CSV_URL.includes('?') ? '&' : '?'}_=${bust}&t=${bust}`;
+    const baseUrl = getSheetCsvUrl();
+    const url = `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}_=${bust}&t=${bust}`;
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 25000);
     const res = await fetch(url, {

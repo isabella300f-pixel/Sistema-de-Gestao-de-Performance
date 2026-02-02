@@ -9,6 +9,13 @@ import type { RegistroDiario } from '@/types';
 export const SHEET_CSV_URL =
   'https://docs.google.com/spreadsheets/d/e/2PACX-1vSzxCdngLexHYSEYbB1nsKqdYMzRmAAj0uamu1m92Ah--O-KfG53y1fD421oxroXYWeGbOJ23zBrXtw/pub?output=csv&gid=57736896';
 
+/** URL usada para buscar CSV quando não há API key. Prioridade: PUBLISHED_CSV_URL > SHEET_CSV_URL (env) > constante acima. */
+export function getSheetCsvUrl(): string {
+  if (typeof process !== 'undefined' && process.env?.PUBLISHED_CSV_URL?.trim()) return process.env.PUBLISHED_CSV_URL.trim();
+  if (typeof process !== 'undefined' && process.env?.SHEET_CSV_URL?.trim()) return process.env.SHEET_CSV_URL.trim();
+  return SHEET_CSV_URL;
+}
+
 export interface SheetRowRaw {
   data?: string;
   carimbo?: string;
