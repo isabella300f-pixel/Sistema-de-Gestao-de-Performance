@@ -147,9 +147,11 @@ export default function ContaAzulDashboardPage() {
 
       // Verificar se houve erro de autenticação
       if (categoriesRes.status === 401 || accountsRes.status === 401 || summaryRes.status === 401) {
-        setError('Erro de autenticação (401). Verifique se o token está correto na variável CONTA_AZUL_ACCESS_TOKEN ou se as credenciais OAuth estão configuradas.');
+        const errorDetails = categoriesData.error || accountsData.error || summaryData.error || 'Erro de autenticação';
+        setError(`Erro de autenticação (401). Verifique se as 4 variáveis OAuth estão configuradas corretamente no Vercel: CONTA_AZUL_CLIENT_ID, CONTA_AZUL_CLIENT_SECRET, CONTA_AZUL_USERNAME, CONTA_AZUL_PASSWORD. Detalhes: ${errorDetails}`);
       } else if (!categoriesData.ok && !accountsData.ok && !summaryData.ok && !cashFlowData.ok && !salesData.ok) {
-        setError('Erro ao carregar dados do Conta Azul. Verifique as credenciais e a configuração da aplicação.');
+        const firstError = categoriesData.error || accountsData.error || summaryData.error || 'Erro desconhecido';
+        setError(`Erro ao carregar dados do Conta Azul: ${firstError}. Verifique as credenciais OAuth no Vercel.`);
       } else {
         console.log('✅ Todos os dados carregados com sucesso!');
       }
@@ -468,8 +470,13 @@ export default function ContaAzulDashboardPage() {
             Nenhum dado disponível. Verifique a conexão com a API do Conta Azul.
           </p>
           <div className="text-sm text-gray-500 space-y-2">
-            <p>💡 Dica: Configure a variável de ambiente <code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_ACCESS_TOKEN</code> com o token gerado no painel do Conta Azul.</p>
-            <p>Ou configure as credenciais OAuth: <code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_CLIENT_ID</code> e <code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_CLIENT_SECRET</code></p>
+            <p>💡 Configure as 4 variáveis OAuth no Vercel:</p>
+            <ul className="list-disc list-inside space-y-1 ml-4">
+              <li><code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_CLIENT_ID</code></li>
+              <li><code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_CLIENT_SECRET</code></li>
+              <li><code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_USERNAME</code></li>
+              <li><code className="bg-gray-800 px-2 py-1 rounded">CONTA_AZUL_PASSWORD</code></li>
+            </ul>
           </div>
         </div>
       )}

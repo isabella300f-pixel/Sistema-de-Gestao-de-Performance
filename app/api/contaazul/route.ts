@@ -34,68 +34,70 @@ export async function GET(request: Request) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    // Verificar se há token manual (para testes) - PRIORIDADE 1
-    const manualToken = process.env.CONTA_AZUL_ACCESS_TOKEN;
-    
-    // Verificar refresh token - PRIORIDADE 2
-    const refreshToken = process.env.CONTA_AZUL_REFRESH_TOKEN;
-    
-    // Verificar Authorization Basic header - PRIORIDADE 3
-    const basicAuth = process.env.CONTA_AZUL_BASIC_AUTH;
-    
-    // Obter credenciais OAuth do ambiente (prioridade para variáveis configuradas no Vercel)
+    // Obter credenciais OAuth do ambiente (as 4 variáveis que você configurou no Vercel)
     const clientId = process.env.CONTA_AZUL_CLIENT_ID;
     const clientSecret = process.env.CONTA_AZUL_CLIENT_SECRET;
     const username = process.env.CONTA_AZUL_USERNAME;
     const password = process.env.CONTA_AZUL_PASSWORD;
 
-    // Verificar se OAuth está configurado
+    // Verificar se todas as 4 variáveis OAuth estão configuradas
     const oauthConfigured = clientId && clientSecret && username && password;
 
     // Log das configurações encontradas
-    console.log('🔐 Verificando autenticação Conta Azul:');
-    console.log('  - Token manual:', manualToken ? '✅ Configurado' : '❌ Não configurado');
-    console.log('  - Refresh token:', refreshToken ? '✅ Configurado' : '❌ Não configurado');
-    console.log('  - OAuth completo:', oauthConfigured ? '✅ Configurado' : '❌ Não configurado');
+    console.log('🔐 Verificando autenticação Conta Azul (OAuth):');
+    console.log('  - CONTA_AZUL_CLIENT_ID:', clientId ? '✅ Configurado' : '❌ Não configurado');
+    console.log('  - CONTA_AZUL_CLIENT_SECRET:', clientSecret ? '✅ Configurado' : '❌ Não configurado');
+    console.log('  - CONTA_AZUL_USERNAME:', username ? '✅ Configurado' : '❌ Não configurado');
+    console.log('  - CONTA_AZUL_PASSWORD:', password ? '✅ Configurado' : '❌ Não configurado');
+    
     if (oauthConfigured) {
-      console.log('  - Client ID:', clientId.substring(0, 10) + '...');
+      console.log('  - Client ID:', clientId.substring(0, 15) + '...');
       console.log('  - Username:', username);
     }
 
-    // Se não houver nenhum método de autenticação configurado
-    if (!manualToken && !refreshToken && !oauthConfigured) {
+    // Se OAuth não estiver completamente configurado
+    if (!oauthConfigured) {
+      const missing = [];
+      if (!clientId) missing.push('CONTA_AZUL_CLIENT_ID');
+      if (!clientSecret) missing.push('CONTA_AZUL_CLIENT_SECRET');
+      if (!username) missing.push('CONTA_AZUL_USERNAME');
+      if (!password) missing.push('CONTA_AZUL_PASSWORD');
+      
       return NextResponse.json(
         { 
-          error: 'Credenciais do Conta Azul não configuradas', 
+          error: 'Credenciais OAuth do Conta Azul não configuradas completamente', 
           ok: false,
-          details: 'Configure uma das opções no Vercel: 1) CONTA_AZUL_ACCESS_TOKEN (token manual), 2) CONTA_AZUL_REFRESH_TOKEN + CONTA_AZUL_BASIC_AUTH, 3) CONTA_AZUL_CLIENT_ID + CONTA_AZUL_CLIENT_SECRET + CONTA_AZUL_USERNAME + CONTA_AZUL_PASSWORD (OAuth completo)'
+          details: `Configure as 4 variáveis no Vercel: CONTA_AZUL_CLIENT_ID, CONTA_AZUL_CLIENT_SECRET, CONTA_AZUL_USERNAME, CONTA_AZUL_PASSWORD. Variáveis faltando: ${missing.join(', ')}`
         },
         { status: 500, headers: NO_CACHE_HEADERS }
       );
     }
 
-    // Obter token de acesso - priorizar token manual, depois refresh_token, depois OAuth
-    // Se OAuth está configurado, passa as credenciais (mesmo que undefined, a função vai tentar)
+    // Obter token de acesso usando OAuth (password grant)
+    console.log('🔄 Iniciando autenticação OAuth...');
     const accessToken = await getContaAzulAccessToken(
-      clientId || '', 
-      clientSecret || '', 
-      username || undefined, 
-      password || undefined,
-      manualToken || undefined,
-      refreshToken || undefined,
-      basicAuth || undefined
+      clientId, 
+      clientSecret, 
+      username, 
+      password,
+      undefined, // não usar token manual
+      undefined, // não usar refresh token
+      undefined  // não usar basic auth
     );
     
     if (!accessToken) {
+      console.error('❌ Falha na autenticação OAuth');
       return NextResponse.json(
         { 
-          error: 'Erro ao obter token de acesso do Conta Azul. Verifique as credenciais e a configuração da aplicação no portal do Conta Azul.', 
+          error: 'Erro ao obter token de acesso via OAuth. Verifique se as credenciais estão corretas no Vercel.', 
           ok: false,
-          details: 'A autenticação pode falhar se: 1) As credenciais estão incorretas, 2) A aplicação não está configurada corretamente no portal, 3) O tipo de autenticação não é suportado. Para testes, você pode usar CONTA_AZUL_ACCESS_TOKEN com um token manual gerado no painel.'
+          details: 'Verifique: 1) Se as 4 variáveis estão configuradas corretamente no Vercel, 2) Se os valores estão corretos (sem espaços extras), 3) Se a aplicação está configurada no portal do Conta Azul. Veja os logs do servidor para mais detalhes.'
         },
         { status: 401, headers: NO_CACHE_HEADERS }
       );
     }
+    
+    console.log('✅ Token OAuth obtido com sucesso!');
 
     let data: unknown;
 
