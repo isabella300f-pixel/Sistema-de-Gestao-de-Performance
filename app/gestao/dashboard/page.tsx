@@ -187,8 +187,6 @@ export default function GestaoDashboardPage() {
   }, [router]);
 
   // Ajustar filtros quando os dados da planilha forem carregados - FORÇAR aplicação inicial
-  const [filtrosInicializados, setFiltrosInicializados] = useState(false);
-  
   useEffect(() => {
     if (!loading && registrosDiarios.length > 0 && !filtrosInicializados) {
       const datas = registrosDiarios.map(r => r.data).sort();
