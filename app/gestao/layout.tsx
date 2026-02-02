@@ -44,6 +44,7 @@ export default function GestaoLayout({
 
   const menuItems = [
     { label: 'Dashboard Executivo', href: '/gestao/dashboard', icon: <LayoutDashboard size={20} /> },
+    { label: 'Dashboard Conta Azul', href: '/gestao/contaazul', icon: <LayoutDashboard size={20} /> },
     { label: 'Registros Diários', href: '/gestao/registros-diarios', icon: <Table size={20} /> },
     { label: 'Melhores', href: '/gestao/melhores', icon: <TrendingUp size={20} /> },
     { label: 'Piores', href: '/gestao/piores', icon: <TrendingDown size={20} /> },

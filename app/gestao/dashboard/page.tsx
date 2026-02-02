@@ -20,18 +20,10 @@ export default function GestaoDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [dadosDaPlanilha, setDadosDaPlanilha] = useState(true); // true = dados da planilha carregados, false = planilha indisponível
-  // Filtro padrão: mês atual ao abrir o relatório
+  // Filtro padrão: será ajustado quando os dados forem carregados
   const [filterVendedor, setFilterVendedor] = useState<string>('');
-  const [filterDataInicio, setFilterDataInicio] = useState<string>(() => {
-    const n = new Date();
-    const d = new Date(n);
-    d.setDate(d.getDate() - 29);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  });
-  const [filterDataFim, setFilterDataFim] = useState<string>(() => {
-    const n = new Date();
-    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
-  });
+  const [filterDataInicio, setFilterDataInicio] = useState<string>('');
+  const [filterDataFim, setFilterDataFim] = useState<string>('');
   const [filterDiaSemana, setFilterDiaSemana] = useState<string>('');
   // Valor da métrica a avaliar nos gráficos (ligações, atendidas, aberturas, etc.)
   const METRICAS_OPCOES: { value: keyof RegistroDiario; label: string }[] = [
@@ -168,6 +160,24 @@ export default function GestaoDashboardPage() {
 
     load();
   }, [router]);
+
+  // Ajustar filtros quando os dados da planilha forem carregados
+  useEffect(() => {
+    if (!loading && registrosDiarios.length > 0) {
+      const datas = registrosDiarios.map(r => r.data).sort();
+      if (datas.length > 0) {
+        const minDate = datas[0];
+        const maxDate = datas[datas.length - 1];
+        // Sempre usar o range completo dos dados disponíveis na primeira vez
+        if (!filterDataInicio || filterDataInicio === '') {
+          setFilterDataInicio(minDate);
+        }
+        if (!filterDataFim || filterDataFim === '') {
+          setFilterDataFim(maxDate);
+        }
+      }
+    }
+  }, [loading, registrosDiarios.length]);
 
   useEffect(() => {
     const onVisibility = () => {
@@ -683,8 +693,20 @@ export default function GestaoDashboardPage() {
                 setFilterValorMetrica('numeroLigacoes');
                 setFilterVendedor('');
                 setFilterDiaSemana('');
-                setFilterDataInicio('');
-                setFilterDataFim('');
+                // Ao limpar, usar o range completo dos dados disponíveis
+                if (registrosDiarios.length > 0) {
+                  const datas = registrosDiarios.map(r => r.data).sort();
+                  if (datas.length > 0) {
+                    setFilterDataInicio(datas[0]);
+                    setFilterDataFim(datas[datas.length - 1]);
+                  } else {
+                    setFilterDataInicio('');
+                    setFilterDataFim('');
+                  }
+                } else {
+                  setFilterDataInicio('');
+                  setFilterDataFim('');
+                }
               }}
               className="w-full px-4 py-2 bg-gray-700 border border-gray-500 rounded-md text-gray-300 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
