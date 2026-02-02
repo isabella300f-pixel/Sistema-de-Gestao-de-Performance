@@ -197,7 +197,34 @@ function detectSeparator(headerLine: string): '\t' | ';' | ',' {
   return ',';
 }
 
-/** Parse CSV string (primeira linha = cabeçalho) e retorna array de objetos com chaves normalizadas. */
+/** Ordem fixa das colunas quando a 1ª linha do CSV é texto de perguntas do formulário (Google Forms). */
+const FIXED_COLUMN_ORDER: (keyof SheetRowRaw)[] = [
+  'carimbo',
+  'data',
+  'diaSemana',
+  'ligacoes',
+  'atendidas',
+  'aberturas',
+  'desqualificados',
+  'formularios',
+  'vendedor',
+  'onlines',
+  'callsAgendadas',
+  'callsRealizadas',
+  'testesVocacionais',
+];
+
+/** Verifica se a primeira linha parece ser rótulos/perguntas do formulário em vez de nomes de colunas. */
+function isFormQuestionsRow(parts: string[]): boolean {
+  const first = (parts[0] ?? '').trim().toLowerCase().normalize('NFD').replace(/\u0300-\u036f/g, '');
+  const second = (parts[1] ?? '').trim().toLowerCase().normalize('NFD').replace(/\u0300-\u036f/g, '');
+  if (/numero de diagnosticos|diagnostico/.test(first)) return true;
+  if (/como avalia sua performance|qual sua sugestao|em qual etapa do funil/.test(second)) return true;
+  if (/como avalia|qual a sua meta|pretende direcionar seu foco/.test(first) || /como avalia|qual a sua meta|pretende direcionar/.test(second)) return true;
+  return false;
+}
+
+/** Parse CSV string (primeira linha = cabeçalho ou linha de perguntas do form). Retorna array de objetos com chaves normalizadas. */
 export function parseSheetCSV(csv: string): SheetRowRaw[] {
   const lines = csv
     .replace(/\r\n/g, '\n')
@@ -207,27 +234,30 @@ export function parseSheetCSV(csv: string): SheetRowRaw[] {
     .split('\n');
   if (lines.length < 2) return [];
 
-  let headerLine = lines[0];
-  const sep = detectSeparator(headerLine);
-  let dataStartIndex = 1;
+  const firstLine = lines[0];
+  const sep = detectSeparator(firstLine);
+  const firstRowParts = firstLine.split(sep).map((h) => h.trim().replace(/^"|"$/g, ''));
 
-  // Se o cabeçalho tem poucas colunas e a próxima linha parece ser continuação do cabeçalho (nomes de colunas), juntar
-  const firstRowParts = headerLine.split(sep).map((h) => h.trim().replace(/^"|"$/g, '').toLowerCase());
-  const hasVendedor = firstRowParts.some((h) => h === 'vendedor' || (HEADER_ALIASES[h] ?? HEADER_ALIASES[h.replace(/[^a-z0-9]/g, '')]) === 'vendedor');
-  if (!hasVendedor && lines.length > 2) {
-    const secondLine = lines[1];
-    const secondParts = secondLine.split(sep).map((v) => v.trim().replace(/^"|"$/g, '').toLowerCase());
-    const looksLikeHeader = secondParts.some((p) => /número de|como avalia|qual a sua meta|em qual etapa/.test(p));
-    if (looksLikeHeader) {
-      headerLine = headerLine + sep + secondLine;
-      dataStartIndex = 2;
-    }
+  let dataStartIndex: number;
+  let keys: (keyof SheetRowRaw)[];
+
+  const firstRowNormalized = firstRowParts.map((h) =>
+    h.replace(/\uFEFF/g, '').replace(/\s+/g, ' ').normalize('NFD').replace(/\u0300-\u036f/g, '').trim().toLowerCase()
+  );
+  const hasRealVendedorHeader = firstRowNormalized.some(
+    (h) => h === 'vendedor' || (HEADER_ALIASES[h] ?? HEADER_ALIASES[h.replace(/[^a-z0-9]/g, '')]) === 'vendedor'
+  );
+  const looksLikeFormQuestions = isFormQuestionsRow(firstRowParts);
+
+  if (looksLikeFormQuestions || (!hasRealVendedorHeader && firstRowParts.length >= 10)) {
+    dataStartIndex = 1;
+    keys = [...FIXED_COLUMN_ORDER];
+  } else {
+    dataStartIndex = 1;
+    keys = firstRowNormalized.map(
+      (h) => HEADER_ALIASES[h] ?? HEADER_ALIASES[h.replace(/[^a-z0-9]/g, '')] ?? (h as keyof SheetRowRaw)
+    );
   }
-
-  const headers = headerLine
-    .split(sep)
-    .map((h) => h.trim().replace(/^"|"$/g, '').replace(/\uFEFF/g, '').replace(/\s+/g, ' ').normalize('NFD').replace(/\u0300-\u036f/g, '').trim().toLowerCase());
-  const keys = headers.map((h) => HEADER_ALIASES[h] ?? HEADER_ALIASES[h.replace(/[^a-z0-9]/g, '')] ?? (h as keyof SheetRowRaw));
 
   const rows: SheetRowRaw[] = [];
   for (let i = dataStartIndex; i < lines.length; i++) {
