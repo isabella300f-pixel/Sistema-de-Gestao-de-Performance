@@ -35,7 +35,6 @@ const HEADER_ALIASES: Record<string, keyof SheetRowRaw> = {
   'diasemana': 'diaSemana',
   'dia': 'diaSemana',
   vendedor: 'vendedor',
-  'vendedor': 'vendedor',
   'nome': 'vendedor',
   'colaborador': 'vendedor',
   ligações: 'ligacoes',
@@ -43,7 +42,6 @@ const HEADER_ALIASES: Record<string, keyof SheetRowRaw> = {
   'ligacoes total': 'ligacoes',
   'número de ligações': 'ligacoes',
   'numero de ligacoes': 'ligacoes',
-  'ligações': 'ligacoes',
   'total ligações': 'ligacoes',
   atendidas: 'atendidas',
   'número de ligações atendidas': 'atendidas',
@@ -66,10 +64,8 @@ const HEADER_ALIASES: Record<string, keyof SheetRowRaw> = {
   'numero de onlines': 'onlines',
   'calls agendadas': 'callsAgendadas',
   'callsagendadas': 'callsAgendadas',
-  'calls agendadas': 'callsAgendadas',
   'calls realizadas': 'callsRealizadas',
   'callsrealizadas': 'callsRealizadas',
-  'calls realizadas': 'callsRealizadas',
 };
 
 function parseNumber(val: string): number {
