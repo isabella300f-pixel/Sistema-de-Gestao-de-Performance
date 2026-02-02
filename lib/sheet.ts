@@ -330,15 +330,15 @@ function normalizeDate(val: string): string {
   return s;
 }
 
-/** Data canônica do registro: prioriza Carimbo de data/hora (momento real do envio); fallback na coluna Data. */
+/** Data canônica do registro: prioriza coluna Data (data da atividade na planilha); fallback no Carimbo. Alinhado 100% à planilha. */
 export function extractDataFromRow(row: SheetRowRaw): string {
-  const carimboVal = row.carimbo ? parseDate(String(row.carimbo)) : '';
-  if (carimboVal) return carimboVal;
   const dataVal = row.data ? normalizeDate(String(row.data)) : '';
-  return dataVal;
+  if (dataVal) return dataVal;
+  const carimboVal = row.carimbo ? parseDate(String(row.carimbo)) : '';
+  return carimboVal;
 }
 
-/** Mapeia linhas da planilha para RegistroDiario. Dados vêm somente da planilha; data usa Carimbo de data/hora quando existir (fonte confiável). */
+/** Mapeia linhas da planilha para RegistroDiario. Dados 100% da planilha; data usa coluna Data (atividade), fallback no Carimbo. */
 export function mapSheetRowsToRegistros(
   rows: SheetRowRaw[],
   getColaboradorId: (nome: string) => string | null

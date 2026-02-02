@@ -620,6 +620,19 @@ export interface FiltroRegistrosDiarios {
   colaboradorIds?: string[]; // para gestor: apenas IDs da equipe
 }
 
+/** Normaliza data para YYYY-MM-DD (aceita DD/MM/YYYY ou YYYY-MM-DD) para comparação correta. */
+function normalizarDataFiltro(s: string): string {
+  const t = (s || '').trim();
+  if (!t) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+  const ddmmyyyy = t.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (ddmmyyyy) {
+    const [, d, m, y] = ddmmyyyy;
+    return `${y}-${m!.padStart(2, '0')}-${d!.padStart(2, '0')}`;
+  }
+  return t;
+}
+
 /** Pesquisa na planilha (registros) e retorna apenas os registros que correspondem aos filtros. */
 export function pesquisarRegistrosDiarios(filtros: FiltroRegistrosDiarios): RegistroDiario[] {
   let resultado = [...registrosDiarios];
@@ -632,15 +645,15 @@ export function pesquisarRegistrosDiarios(filtros: FiltroRegistrosDiarios): Regi
     resultado = resultado.filter(r => r.colaboradorId === filtros.colaboradorId);
   }
 
-  // Comparação por string YYYY-MM-DD para evitar bugs de timezone
+  // Comparação por string YYYY-MM-DD (normalizar DD/MM/YYYY do usuário)
   if (filtros.dataInicio) {
-    const inicio = filtros.dataInicio;
-    resultado = resultado.filter(r => r.data >= inicio);
+    const inicio = normalizarDataFiltro(filtros.dataInicio);
+    if (inicio) resultado = resultado.filter(r => r.data >= inicio);
   }
 
   if (filtros.dataFim) {
-    const fim = filtros.dataFim;
-    resultado = resultado.filter(r => r.data <= fim);
+    const fim = normalizarDataFiltro(filtros.dataFim);
+    if (fim) resultado = resultado.filter(r => r.data <= fim);
   }
 
   if (filtros.diaSemana) {
