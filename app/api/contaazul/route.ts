@@ -43,31 +43,44 @@ export async function GET(request: Request) {
     // Verificar Authorization Basic header - PRIORIDADE 3
     const basicAuth = process.env.CONTA_AZUL_BASIC_AUTH;
     
-    // Obter credenciais do ambiente
-    const clientId = process.env.CONTA_AZUL_CLIENT_ID || '13i92mrduirpqcdctqp9q1vr9c';
-    const clientSecret = process.env.CONTA_AZUL_CLIENT_SECRET || '3cufa5ee3ltuo8mtkiotn82r32k38atb21mhud1orfphtvh2mep';
-    // Credenciais de teste do ERP (username/password)
-    const username = process.env.CONTA_AZUL_USERNAME || 'a948e6e2-47da-410e-9646-0019c66f1503@devportal.com';
-    const password = process.env.CONTA_AZUL_PASSWORD || 'a948e6e2-47da-410e-9646-0019c66f1503';
+    // Obter credenciais OAuth do ambiente (prioridade para variáveis configuradas no Vercel)
+    const clientId = process.env.CONTA_AZUL_CLIENT_ID;
+    const clientSecret = process.env.CONTA_AZUL_CLIENT_SECRET;
+    const username = process.env.CONTA_AZUL_USERNAME;
+    const password = process.env.CONTA_AZUL_PASSWORD;
 
-    // Se não houver token manual, precisa das credenciais
-    if (!manualToken && !refreshToken && (!clientId || !clientSecret)) {
+    // Verificar se OAuth está configurado
+    const oauthConfigured = clientId && clientSecret && username && password;
+
+    // Log das configurações encontradas
+    console.log('🔐 Verificando autenticação Conta Azul:');
+    console.log('  - Token manual:', manualToken ? '✅ Configurado' : '❌ Não configurado');
+    console.log('  - Refresh token:', refreshToken ? '✅ Configurado' : '❌ Não configurado');
+    console.log('  - OAuth completo:', oauthConfigured ? '✅ Configurado' : '❌ Não configurado');
+    if (oauthConfigured) {
+      console.log('  - Client ID:', clientId.substring(0, 10) + '...');
+      console.log('  - Username:', username);
+    }
+
+    // Se não houver nenhum método de autenticação configurado
+    if (!manualToken && !refreshToken && !oauthConfigured) {
       return NextResponse.json(
         { 
           error: 'Credenciais do Conta Azul não configuradas', 
           ok: false,
-          details: 'Configure uma das opções: 1) CONTA_AZUL_ACCESS_TOKEN (token manual), 2) CONTA_AZUL_REFRESH_TOKEN + CONTA_AZUL_BASIC_AUTH, 3) CONTA_AZUL_CLIENT_ID + CONTA_AZUL_CLIENT_SECRET'
+          details: 'Configure uma das opções no Vercel: 1) CONTA_AZUL_ACCESS_TOKEN (token manual), 2) CONTA_AZUL_REFRESH_TOKEN + CONTA_AZUL_BASIC_AUTH, 3) CONTA_AZUL_CLIENT_ID + CONTA_AZUL_CLIENT_SECRET + CONTA_AZUL_USERNAME + CONTA_AZUL_PASSWORD (OAuth completo)'
         },
         { status: 500, headers: NO_CACHE_HEADERS }
       );
     }
 
     // Obter token de acesso - priorizar token manual, depois refresh_token, depois OAuth
+    // Se OAuth está configurado, passa as credenciais (mesmo que undefined, a função vai tentar)
     const accessToken = await getContaAzulAccessToken(
-      clientId, 
-      clientSecret, 
-      username, 
-      password,
+      clientId || '', 
+      clientSecret || '', 
+      username || undefined, 
+      password || undefined,
       manualToken || undefined,
       refreshToken || undefined,
       basicAuth || undefined
