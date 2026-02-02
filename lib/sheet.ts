@@ -198,13 +198,15 @@ export function parseSheetCSV(csv: string): SheetRowRaw[] {
 
   const headerLine = lines[0];
   const sep = headerLine.includes(';') ? ';' : ',';
-  const headers = headerLine.split(sep).map((h) => h.trim().toLowerCase().replace(/\s+/g, ' ').normalize('NFD').replace(/\u0300-\u036f/g, ''));
+  const headers = headerLine
+    .split(sep)
+    .map((h) => h.trim().replace(/^"|"$/g, '').replace(/\uFEFF/g, '').replace(/\s+/g, ' ').normalize('NFD').replace(/\u0300-\u036f/g, '').trim().toLowerCase());
   const keys = headers.map((h) => HEADER_ALIASES[h] ?? HEADER_ALIASES[h.replace(/[^a-z0-9]/g, '')] ?? (h as keyof SheetRowRaw));
 
   const rows: SheetRowRaw[] = [];
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
-    const values = line.split(sep).map((v) => v.trim().replace(/^"|"$/g, ''));
+    const values = line.split(sep).map((v) => v.trim().replace(/^"|"$/g, '').replace(/\uFEFF/g, ''));
     const row: Record<string, string | number> = {};
     keys.forEach((key, idx) => {
       if (!key) return;
@@ -276,18 +278,30 @@ export function mapSheetRowsToRegistros(
   for (const row of rows) {
     // Tentar múltiplas formas de obter o nome do vendedor (case-insensitive, com fallbacks)
     const rowAny = row as any;
-    const nome = (
-      row.vendedor ?? 
-      rowAny.Vendedor ?? 
-      rowAny.vendedor ?? 
-      rowAny.nome ?? 
-      rowAny.Nome ?? 
-      rowAny.colaborador ?? 
+    let nome = (
+      row.vendedor ??
+      rowAny.Vendedor ??
+      rowAny.vendedor ??
+      rowAny.nome ??
+      rowAny.Nome ??
+      rowAny.colaborador ??
       rowAny.Colaborador ??
       rowAny['vendedor'] ??
       rowAny['Vendedor'] ??
       ''
     ).toString().trim();
+    // Fallback: qualquer chave do objeto que contenha "vendedor" (ex.: CSV com cabeçalho entre aspas)
+    if (!nome && typeof rowAny === 'object') {
+      for (const key of Object.keys(rowAny)) {
+        if (key.toLowerCase().includes('vendedor')) {
+          const val = rowAny[key];
+          if (val !== undefined && val !== null && String(val).trim() !== '') {
+            nome = String(val).trim();
+            break;
+          }
+        }
+      }
+    }
     
     if (!nome || nome === 'undefined' || nome === 'null' || nome === '') {
       skippedSemVendedor++;
