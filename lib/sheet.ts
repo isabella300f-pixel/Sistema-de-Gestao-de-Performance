@@ -11,7 +11,7 @@ export const SHEET_CSV_URL =
 
 export interface SheetRowRaw {
   data?: string;
-  carimbo?: string; // Carimbo de data/hora (fallback para data)
+  carimbo?: string;
   diaSemana?: string;
   vendedor?: string;
   ligacoes?: number;
@@ -22,6 +22,12 @@ export interface SheetRowRaw {
   onlines?: number;
   callsAgendadas?: number;
   callsRealizadas?: number;
+  testesVocacionais?: number;
+  diagnosticos?: number;
+  avaliacaoPerformance?: string;
+  sugestaoMelhoria?: string;
+  metaProximoDia?: string;
+  etapaFunilFoco?: string;
 }
 
 const HEADER_ALIASES: Record<string, keyof SheetRowRaw> = {
@@ -64,8 +70,28 @@ const HEADER_ALIASES: Record<string, keyof SheetRowRaw> = {
   'numero de onlines': 'onlines',
   'calls agendadas': 'callsAgendadas',
   'callsagendadas': 'callsAgendadas',
+  'número de calls agendadas': 'callsAgendadas',
+  'numero de calls agendadas': 'callsAgendadas',
   'calls realizadas': 'callsRealizadas',
   'callsrealizadas': 'callsRealizadas',
+  'número de calls realizadas': 'callsRealizadas',
+  'numero de calls realizadas': 'callsRealizadas',
+  'número de testes vocacionais': 'testesVocacionais',
+  'numero de testes vocacionais': 'testesVocacionais',
+  'testes vocacionais': 'testesVocacionais',
+  'número de diagnósticos': 'diagnosticos',
+  'numero de diagnosticos': 'diagnosticos',
+  'número de diagnósticos ': 'diagnosticos',
+  'diagnósticos': 'diagnosticos',
+  'diagnosticos': 'diagnosticos',
+  'como avalia sua performance hoje?': 'avaliacaoPerformance',
+  'avaliacao performance': 'avaliacaoPerformance',
+  'com base na resposta anterior, qual sua sugestão de melhoria?': 'sugestaoMelhoria',
+  'sugestao de melhoria': 'sugestaoMelhoria',
+  'qual a sua meta para o próximo dia?': 'metaProximoDia',
+  'meta próximo dia': 'metaProximoDia',
+  'em qual etapa do funil, pretende direcionar seu foco?': 'etapaFunilFoco',
+  'etapa funil foco': 'etapaFunilFoco',
 };
 
 function parseNumber(val: string): number {
@@ -134,7 +160,7 @@ export function parseSheetValuesFromApi(values: string[][]): SheetRowRaw[] {
       if (key === 'data') obj[key] = parseDate(s);
       else if (key === 'carimbo') obj[key] = s;
       else if (key === 'desqualificados') obj[key] = parseDesqualificados(s);
-      else if (['ligacoes', 'atendidas', 'aberturas', 'formularios', 'onlines', 'callsAgendadas', 'callsRealizadas'].includes(key))
+      else if (['ligacoes', 'atendidas', 'aberturas', 'formularios', 'onlines', 'callsAgendadas', 'callsRealizadas', 'testesVocacionais', 'diagnosticos'].includes(key))
         obj[key] = parseNumber(s);
       else obj[key] = s;
     });
@@ -186,7 +212,9 @@ export function parseSheetCSV(csv: string): SheetRowRaw[] {
         key === 'formularios' ||
         key === 'onlines' ||
         key === 'callsAgendadas' ||
-        key === 'callsRealizadas'
+        key === 'callsRealizadas' ||
+        key === 'testesVocacionais' ||
+        key === 'diagnosticos'
       )
         row[key] = parseNumber(val ?? '');
       else row[key] = (val ?? '').trim();
@@ -215,7 +243,7 @@ function normalizeDate(val: string): string {
 }
 
 /** Data canônica do registro: prioriza Carimbo de data/hora (momento real do envio); fallback na coluna Data. */
-function extractDataFromRow(row: SheetRowRaw): string {
+export function extractDataFromRow(row: SheetRowRaw): string {
   const carimboVal = row.carimbo ? parseDate(String(row.carimbo)) : '';
   if (carimboVal) return carimboVal;
   const dataVal = row.data ? normalizeDate(String(row.data)) : '';
@@ -305,8 +333,12 @@ export function mapSheetRowsToRegistros(
       numeroOnlines: getNumValue('onlines', ['onlines', 'Onlines', 'número de onlines']),
       callsAgendadas: getNumValue('callsAgendadas', ['calls agendadas', 'Calls Agendadas']),
       callsRealizadas: getNumValue('callsRealizadas', ['calls realizadas', 'Calls Realizadas']),
-      testesVocacionais: 0,
-      diagnosticos: 0,
+      testesVocacionais: getNumValue('testesVocacionais', ['número de testes vocacionais']),
+      diagnosticos: getNumValue('diagnosticos', ['número de diagnósticos']),
+      avaliacaoPerformance: String(rowAny.avaliacaoPerformance ?? rowAny['como avalia sua performance hoje?'] ?? '').trim() || undefined,
+      sugestaoMelhoria: String(rowAny.sugestaoMelhoria ?? rowAny['com base na resposta anterior, qual sua sugestão de melhoria?'] ?? '').trim() || undefined,
+      metaProximoDia: String(rowAny.metaProximoDia ?? rowAny['qual a sua meta para o próximo dia?'] ?? '').trim() || undefined,
+      etapaFunilFoco: String(rowAny.etapaFunilFoco ?? rowAny['em qual etapa do funil, pretende direcionar seu foco?'] ?? '').trim() || undefined,
     };
     
     if (colaboradorId.startsWith('sheet:')) reg.vendedorNome = nomeFinal;
