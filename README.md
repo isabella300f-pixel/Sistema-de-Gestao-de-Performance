@@ -14,6 +14,8 @@ O sistema possui integração completa com a API do Conta Azul para importação
 - **[Checklist](./CHECKLIST_API_CONTA_AZUL.md)** - Checklist prático de configuração
 - **[Configuração Token Manual](./CONFIGURACAO_TOKEN_MANUAL.md)** - Como usar token manual para testes
 - **[Deploy no Vercel](./DEPLOY_VERCEL.md)** - Como fazer deploy e configurar variáveis no Vercel
+- **[Guia Vercel Passo a Passo](./GUIA_VERCEL_PASSO_A_PASSO.md)** - ⭐ Guia visual detalhado para configurar variáveis
+- **[Checklist Vercel](./CHECKLIST_VERCEL.md)** - Checklist prático para não esquecer nada
 
 ### 🚀 Início Rápido
 
