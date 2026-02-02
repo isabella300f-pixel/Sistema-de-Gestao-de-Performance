@@ -4,7 +4,7 @@
  */
 
 const CONTA_AZUL_BASE_URL = 'https://api.contaazul.com/v1';
-const CONTA_AZUL_AUTH_URL = 'https://api.contaazul.com/oauth2/token';
+const CONTA_AZUL_AUTH_URL = 'https://auth.contaazul.com/oauth2/token';
 
 export interface ContaAzulTokenResponse {
   access_token: string;
@@ -76,22 +76,45 @@ export async function getContaAzulAccessToken(
   clientSecret: string
 ): Promise<string | null> {
   try {
+    // Tentar authorization code flow primeiro (se tiver refresh token)
+    // Caso contrário, tentar client credentials
     const response = await fetch(CONTA_AZUL_AUTH_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
       },
       body: new URLSearchParams({
-        grant_type: 'client_credentials',
+        grant_type: 'authorization_code',
         client_id: clientId,
         client_secret: clientSecret,
-        scope: 'sales financial',
+        redirect_uri: 'https://contaazul.com',
       }),
     });
 
     if (!response.ok) {
-      console.error('Erro ao obter token:', await response.text());
-      return null;
+      // Se authorization_code falhar, tentar client_credentials
+      const response2 = await fetch(CONTA_AZUL_AUTH_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+        },
+        body: new URLSearchParams({
+          grant_type: 'client_credentials',
+          client_id: clientId,
+          client_secret: clientSecret,
+        }),
+      });
+
+      if (!response2.ok) {
+        const errorText = await response2.text();
+        console.error('Erro ao obter token do Conta Azul:', response2.status, errorText);
+        return null;
+      }
+
+      const data: ContaAzulTokenResponse = await response2.json();
+      return data.access_token;
     }
 
     const data: ContaAzulTokenResponse = await response.json();

@@ -47,8 +47,13 @@ export async function GET(request: Request) {
     // Obter token de acesso
     const accessToken = await getContaAzulAccessToken(clientId, clientSecret);
     if (!accessToken) {
+      // Retornar erro mais detalhado para debug
       return NextResponse.json(
-        { error: 'Erro ao obter token de acesso do Conta Azul', ok: false },
+        { 
+          error: 'Erro ao obter token de acesso do Conta Azul. Verifique as credenciais e a configuração da aplicação no portal do Conta Azul.', 
+          ok: false,
+          details: 'A autenticação pode falhar se: 1) As credenciais estão incorretas, 2) A aplicação não está configurada corretamente no portal, 3) O tipo de autenticação não é suportado (pode ser necessário usar authorization code flow ao invés de client credentials)'
+        },
         { status: 401, headers: NO_CACHE_HEADERS }
       );
     }

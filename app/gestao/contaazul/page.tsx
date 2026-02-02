@@ -101,8 +101,11 @@ export default function ContaAzulDashboardPage() {
         setSales(salesData.data || []);
       }
 
-      if (!accountsData.ok && !summaryData.ok && !cashFlowData.ok && !salesData.ok) {
-        setError('Erro ao carregar dados do Conta Azul. Verifique as credenciais.');
+      // Verificar se houve erro de autenticação
+      if (accountsRes.status === 401 || summaryRes.status === 401) {
+        setError('Erro de autenticação (401). Verifique as credenciais do Conta Azul. A aplicação pode precisar ser configurada no portal do Conta Azul para usar authorization code flow ao invés de client credentials.');
+      } else if (!accountsData.ok && !summaryData.ok && !cashFlowData.ok && !salesData.ok) {
+        setError('Erro ao carregar dados do Conta Azul. Verifique as credenciais e a configuração da aplicação.');
       }
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
@@ -142,6 +145,17 @@ export default function ContaAzulDashboardPage() {
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [loading]);
+
+  // Atualização automática periódica (a cada 5 minutos)
+  useEffect(() => {
+    if (loading) return;
+    
+    const interval = setInterval(() => {
+      carregarDados();
+    }, 5 * 60 * 1000); // 5 minutos
+
+    return () => clearInterval(interval);
   }, [loading]);
 
   const formatCurrency = (value: number) => {

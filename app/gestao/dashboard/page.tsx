@@ -116,16 +116,29 @@ export default function GestaoDashboardPage() {
       if (json.ok && Array.isArray(json.data) && json.data.length > 0) {
         const registros = mapSheetRowsToRegistros(json.data, getColaboradorIdByName);
         if (registros.length > 0) {
-          setRegistrosDiariosFromSheet(registros);
-          setRegistrosDiarios(registros);
+          // Ordenar por data (mais recente primeiro)
+          const registrosOrdenados = registros.sort((a, b) => new Date(b.data).getTime() - new Date(a.data).getTime());
+          setRegistrosDiariosFromSheet(registrosOrdenados);
+          setRegistrosDiarios(registrosOrdenados);
           setDadosDaPlanilha(true);
           return;
         }
       }
-    } catch (_) {}
-    setRegistrosDiariosFromSheet([]);
-    setRegistrosDiarios([]);
-    setDadosDaPlanilha(false);
+      // Se não há dados, limpar mas manter estado de dados disponíveis se já havia dados antes
+      if (registrosDiarios.length === 0) {
+        setRegistrosDiariosFromSheet([]);
+        setRegistrosDiarios([]);
+        setDadosDaPlanilha(false);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar dados da planilha:', error);
+      // Só limpar se não houver dados já carregados
+      if (registrosDiarios.length === 0) {
+        setRegistrosDiariosFromSheet([]);
+        setRegistrosDiarios([]);
+        setDadosDaPlanilha(false);
+      }
+    }
   };
 
   useEffect(() => {
@@ -169,15 +182,15 @@ export default function GestaoDashboardPage() {
         const minDate = datas[0];
         const maxDate = datas[datas.length - 1];
         // Sempre usar o range completo dos dados disponíveis na primeira vez
-        if (!filterDataInicio || filterDataInicio === '') {
+        // Usar uma flag para garantir que só ajuste uma vez
+        const shouldSetFilters = !filterDataInicio || filterDataInicio === '' || !filterDataFim || filterDataFim === '';
+        if (shouldSetFilters) {
           setFilterDataInicio(minDate);
-        }
-        if (!filterDataFim || filterDataFim === '') {
           setFilterDataFim(maxDate);
         }
       }
     }
-  }, [loading, registrosDiarios.length]);
+  }, [loading, registrosDiarios.length, filterDataInicio, filterDataFim]);
 
   useEffect(() => {
     const onVisibility = () => {
@@ -186,6 +199,25 @@ export default function GestaoDashboardPage() {
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, [loading]);
+
+  // Atualização automática periódica (a cada 5 minutos)
+  useEffect(() => {
+    if (loading) return;
+    
+    const interval = setInterval(() => {
+      carregarDadosPlanilha();
+    }, 5 * 60 * 1000); // 5 minutos
+
+    return () => clearInterval(interval);
+  }, [loading]);
+
+  // Recarregar dados quando os filtros mudarem (apenas se houver dados já carregados)
+  useEffect(() => {
+    if (!loading && registrosDiarios.length > 0) {
+      // Os dados já estão carregados, apenas reaplicar filtros
+      // Não precisa recarregar da API, apenas usar os dados já em memória
+    }
+  }, [filterVendedor, filterDataInicio, filterDataFim, filterDiaSemana, filterValorMetrica]);
 
   const getIndicadores = (colaboradorId: string): IndicadoresColaborador => {
     const avalsColab = avaliacoes.filter(
@@ -415,7 +447,14 @@ export default function GestaoDashboardPage() {
   })();
 
   if (loading) {
-    return <div className="text-center py-12">Carregando...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 text-blue-400 animate-spin mx-auto mb-4" />
+          <p className="text-gray-300">Carregando dados da planilha...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
