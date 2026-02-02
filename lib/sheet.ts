@@ -281,36 +281,17 @@ export function parseSheetCSV(csv: string): SheetRowRaw[] {
   if (allRows.length >= 1 && allRows[0].length <= 1) allRows = parseCSVRows(csv, ',');
   if (allRows.length < 2) return [];
 
-  const headerRow = allRows[0];
-  const numCols = Math.max(headerRow.length, FIXED_COLUMN_ORDER_18.length);
-  const keys: (keyof SheetRowRaw)[] = [];
-
-  const headerNormalized = headerRow.map(normalizeHeader);
-  const hasVendedor = headerNormalized.some(
-    (h) => h === 'vendedor' || (HEADER_ALIASES[h] ?? HEADER_ALIASES[h.replace(/[^a-z0-9]/g, '')]) === 'vendedor'
-  );
-
-  if (hasVendedor && headerNormalized.length >= 10) {
-    for (let idx = 0; idx < numCols; idx++) {
-      const h = headerNormalized[idx] ?? '';
-      const alias = HEADER_ALIASES[h] ?? HEADER_ALIASES[h.replace(/[^a-z0-9]/g, '')];
-      keys.push(alias ?? (h ? (h as keyof SheetRowRaw) : (FIXED_COLUMN_ORDER_18[idx] as keyof SheetRowRaw)));
-    }
-  } else {
-    for (let idx = 0; idx < numCols; idx++) {
-      keys.push(FIXED_COLUMN_ORDER_18[idx] ?? (`col${idx}` as keyof SheetRowRaw));
-    }
-  }
-
   const rows: SheetRowRaw[] = [];
+  const numKeys = FIXED_COLUMN_ORDER_18.length;
   for (let r = 1; r < allRows.length; r++) {
     const values = allRows[r];
     const row: Record<string, string | number> = {};
-    keys.forEach((key, idx) => {
-      if (!key || key.startsWith('col')) return;
-      const val = values[idx] ?? '';
+    // Sempre preencher por índice fixo (ordem da planilha) para garantir ligações, atendidas, aberturas etc.
+    for (let i = 0; i < numKeys; i++) {
+      const key = FIXED_COLUMN_ORDER_18[i];
+      const val = String(values[i] ?? '').trim();
       if (key === 'data') row[key] = parseDate(val);
-      else if (key === 'carimbo') row[key] = val.trim();
+      else if (key === 'carimbo') row[key] = val;
       else if (key === 'desqualificados') row[key] = parseDesqualificados(val);
       else if (
         key === 'ligacoes' ||
@@ -324,8 +305,8 @@ export function parseSheetCSV(csv: string): SheetRowRaw[] {
         key === 'diagnosticos'
       )
         row[key] = parseNumber(val);
-      else row[key] = val.trim();
-    });
+      else row[key] = val;
+    }
     rows.push(row as SheetRowRaw);
   }
   return rows;
