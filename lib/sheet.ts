@@ -187,6 +187,16 @@ export function parseSheetValuesFromApi(values: string[][]): SheetRowRaw[] {
   return rows;
 }
 
+/** Detecta separador: o que produz mais colunas no cabeçalho (TAB comum em PT-BR; servidor pode devolver vírgula). */
+function detectSeparator(headerLine: string): '\t' | ';' | ',' {
+  const byTab = headerLine.split('\t').length;
+  const bySemi = headerLine.split(';').length;
+  const byComma = headerLine.split(',').length;
+  if (byTab >= bySemi && byTab >= byComma && byTab > 1) return '\t';
+  if (bySemi >= byComma && bySemi > 1) return ';';
+  return ',';
+}
+
 /** Parse CSV string (primeira linha = cabeçalho) e retorna array de objetos com chaves normalizadas. */
 export function parseSheetCSV(csv: string): SheetRowRaw[] {
   const lines = csv
@@ -197,16 +207,30 @@ export function parseSheetCSV(csv: string): SheetRowRaw[] {
     .split('\n');
   if (lines.length < 2) return [];
 
-  const headerLine = lines[0];
-  // Google Sheets "Publicar na Web" CSV pode vir com TAB (ex.: locale PT-BR); priorizar TAB > ; > ,
-  const sep = headerLine.includes('\t') ? '\t' : headerLine.includes(';') ? ';' : ',';
+  let headerLine = lines[0];
+  const sep = detectSeparator(headerLine);
+  let dataStartIndex = 1;
+
+  // Se o cabeçalho tem poucas colunas e a próxima linha parece ser continuação do cabeçalho (nomes de colunas), juntar
+  const firstRowParts = headerLine.split(sep).map((h) => h.trim().replace(/^"|"$/g, '').toLowerCase());
+  const hasVendedor = firstRowParts.some((h) => h === 'vendedor' || (HEADER_ALIASES[h] ?? HEADER_ALIASES[h.replace(/[^a-z0-9]/g, '')]) === 'vendedor');
+  if (!hasVendedor && lines.length > 2) {
+    const secondLine = lines[1];
+    const secondParts = secondLine.split(sep).map((v) => v.trim().replace(/^"|"$/g, '').toLowerCase());
+    const looksLikeHeader = secondParts.some((p) => /número de|como avalia|qual a sua meta|em qual etapa/.test(p));
+    if (looksLikeHeader) {
+      headerLine = headerLine + sep + secondLine;
+      dataStartIndex = 2;
+    }
+  }
+
   const headers = headerLine
     .split(sep)
     .map((h) => h.trim().replace(/^"|"$/g, '').replace(/\uFEFF/g, '').replace(/\s+/g, ' ').normalize('NFD').replace(/\u0300-\u036f/g, '').trim().toLowerCase());
   const keys = headers.map((h) => HEADER_ALIASES[h] ?? HEADER_ALIASES[h.replace(/[^a-z0-9]/g, '')] ?? (h as keyof SheetRowRaw));
 
   const rows: SheetRowRaw[] = [];
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = dataStartIndex; i < lines.length; i++) {
     const line = lines[i];
     const values = line.split(sep).map((v) => v.trim().replace(/^"|"$/g, '').replace(/\uFEFF/g, ''));
     const row: Record<string, string | number> = {};
