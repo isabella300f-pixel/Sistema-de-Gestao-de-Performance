@@ -260,6 +260,23 @@ export default function GestorRegistrosDiariosPage() {
         </button>
       </div>
 
+      {/* Alerta se há dados mas nenhum após filtros */}
+      {pesquisaExecutada && registrosParaDatas.length > 0 && resultadoPesquisa.length === 0 && (
+        <div className="card-white p-4 bg-yellow-500/10 border border-yellow-500/50">
+          <p className="text-yellow-400 font-medium">
+            ⚠️ Atenção: Há {registrosParaDatas.length} registros carregados, mas nenhum corresponde aos filtros aplicados.
+          </p>
+          <p className="text-yellow-300 text-sm mt-2">
+            Filtros ativos: {filterDataInicio ? `De ${filterDataInicio}` : 'Sem data início'} até {filterDataFim ? filterDataFim : 'sem data fim'}
+            {filterVendedor && ` | Vendedor: ${colaboradores.find(c => c.id === filterVendedor)?.name || filterVendedor}`}
+            {filterDiaSemana && ` | Dia: ${filterDiaSemana}`}
+          </p>
+          <p className="text-yellow-300 text-sm mt-1">
+            Dica: Ajuste as datas ou os filtros para o período dos dados disponíveis.
+          </p>
+        </div>
+      )}
+
       {/* Filtros + Botão Pesquisar */}
       <div className="card-white p-4 sm:p-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
