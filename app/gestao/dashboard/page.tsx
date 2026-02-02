@@ -21,8 +21,8 @@ export default function GestaoDashboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [dadosDaPlanilha, setDadosDaPlanilha] = useState(true); // true = dados da planilha carregados, false = planilha indisponível
   const [filterVendedor, setFilterVendedor] = useState<string>('');
-  const [filterDataInicio, setFilterDataInicio] = useState<string>('');
-  const [filterDataFim, setFilterDataFim] = useState<string>('');
+  const [filterDataInicio, setFilterDataInicio] = useState<string>(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [filterDataFim, setFilterDataFim] = useState<string>(() => format(endOfMonth(new Date()), 'yyyy-MM-dd'));
   const [filterDiaSemana, setFilterDiaSemana] = useState<string>('');
   // Valor da métrica a avaliar nos gráficos (ligações, atendidas, aberturas, etc.)
   const METRICAS_OPCOES: { value: keyof RegistroDiario; label: string }[] = [
