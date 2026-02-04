@@ -159,4 +159,3 @@ Assim a produção usa explicitamente essa URL. Depois faça **Redeploy**.
 6. Faça **Redeploy** e teste de novo a página de Gestão de Pessoas.
 
 **Resumo:** Se a planilha que você usa é a que já estava no código, use a URL que está em `lib/sheet.ts` no `PUBLISHED_CSV_URL`. Se for outra planilha, publique na web e monte a URL com `pub?output=csv` (e `&gid=...` se for uma aba específica).
-

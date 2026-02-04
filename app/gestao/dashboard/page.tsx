@@ -374,6 +374,17 @@ export default function GestaoDashboardPage() {
     a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })
   );
 
+  // Paleta única por vendedor em todos os gráficos (mesma cor para o mesmo vendedor)
+  const CORES_VENDEDORES = [
+    '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#059669', '#06B6D4', '#F97316',
+    '#EC4899', '#6366F1', '#84CC16', '#B45309',
+  ];
+  const coresPorColaboradorId: Record<string, string> = {};
+  colaboradoresOrdenados.forEach((c, i) => {
+    coresPorColaboradorId[c.id] = CORES_VENDEDORES[i % CORES_VENDEDORES.length];
+  });
+  const getCorVendedor = (colaboradorId: string) => coresPorColaboradorId[colaboradorId] ?? '#6B7280';
+
   // Calcular KPIs dos registros diários (respeitando filtros)
   const totalLigacoes = registrosFiltrados.reduce((sum, r) => sum + r.numeroLigacoes, 0);
   const totalAtendidas = registrosFiltrados.reduce((sum, r) => sum + r.ligacoesAtendidas, 0);
@@ -451,8 +462,10 @@ export default function GestaoDashboardPage() {
     .map(({ col, total }) => ({
       name: col.name.split(' ').slice(0, 2).join(' '),
       value: total,
+      colaboradorId: col.id,
     }))
     .sort((a, b) => b.value - a.value);
+  const totalPie = distribLigacoesPorVendedor.reduce((s, d) => s + d.value, 0);
 
   // Semanas no formato segunda a domingo (Monday = início da semana)
   const getMonday = (d: Date): string => {
@@ -940,22 +953,39 @@ export default function GestaoDashboardPage() {
                   );
                 }}
               />
-              <Legend wrapperStyle={{ color: '#fff', fontSize: '12px' }} />
-              {topVendedores.map(({ col }, index) => {
-                const cores = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
-                return (
-                  <Line 
-                    key={col.id}
-                    type="monotone" 
-                    dataKey={col.name.split(' ').slice(0, 2).join(' ')} 
-                    stroke={cores[index % cores.length]} 
-                    strokeWidth={2}
-                  />
-                );
-              })}
+              <Legend
+                wrapperStyle={{ color: '#fff', fontSize: '12px' }}
+                formatter={(value) => (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      const col = topVendedores.find(({ col: c }) => c.name.split(' ').slice(0, 2).join(' ') === value)?.col;
+                      if (col) setFilterVendedor(col.id);
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && (() => {
+                      const col = topVendedores.find(({ col: c }) => c.name.split(' ').slice(0, 2).join(' ') === value)?.col;
+                      if (col) setFilterVendedor(col.id);
+                    })()}
+                    className="cursor-pointer hover:underline"
+                  >
+                    {value}
+                  </span>
+                )}
+              />
+              {topVendedores.map(({ col }) => (
+                <Line
+                  key={col.id}
+                  type="monotone"
+                  dataKey={col.name.split(' ').slice(0, 2).join(' ')}
+                  stroke={getCorVendedor(col.id)}
+                  strokeWidth={2}
+                />
+              ))}
             </LineChart>
           </ResponsiveContainer>
           </div>
+          <p className="text-xs text-gray-400 mt-2">Clique na legenda para filtrar por vendedor.</p>
         </div>
 
         {/* Gráfico de barras empilhadas por dia da semana */}
@@ -990,27 +1020,49 @@ export default function GestaoDashboardPage() {
                   );
                 }}
               />
-              <Legend wrapperStyle={{ color: '#fff' }} />
-              {topVendedores.map(({ col }, index) => {
-                const cores = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
-                return (
-                  <Bar 
-                    key={col.id}
-                    dataKey={col.name.split(' ').slice(0, 2).join(' ')} 
-                    stackId="a"
-                    fill={cores[index % cores.length]} 
-                  />
-                );
-              })}
+              <Legend
+                wrapperStyle={{ color: '#fff' }}
+                formatter={(value) => (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => {
+                      const col = topVendedores.find(({ col: c }) => c.name.split(' ').slice(0, 2).join(' ') === value)?.col;
+                      if (col) setFilterVendedor(col.id);
+                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && (() => {
+                      const col = topVendedores.find(({ col: c }) => c.name.split(' ').slice(0, 2).join(' ') === value)?.col;
+                      if (col) setFilterVendedor(col.id);
+                    })()}
+                    className="cursor-pointer hover:underline"
+                  >
+                    {value}
+                  </span>
+                )}
+              />
+              {topVendedores.map(({ col }) => (
+                <Bar
+                  key={col.id}
+                  dataKey={col.name.split(' ').slice(0, 2).join(' ')}
+                  stackId="a"
+                  fill={getCorVendedor(col.id)}
+                  onClick={(data: { dia?: string }) => {
+                    setFilterVendedor(col.id);
+                    if (data?.dia) setFilterDiaSemana(data.dia);
+                  }}
+                  style={{ cursor: 'pointer' }}
+                />
+              ))}
             </BarChart>
           </ResponsiveContainer>
           </div>
+          <p className="text-xs text-gray-400 mt-2">Clique em um segmento ou na legenda para filtrar por vendedor/dia.</p>
         </div>
       </div>
 
       {/* Gráficos Adicionais */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        {/* Gráfico de rosca - Distribuição de ligações por vendedor */}
+        {/* Gráfico de rosca - Distribuição por vendedor (legenda abaixo evita corte de texto) */}
         <div className="card-white p-4 sm:p-6">
           <h2 className="text-base sm:text-lg font-semibold text-white mb-4">{labelMetricaSelecionada} por Vendedor</h2>
           <div className="chart-responsive">
@@ -1019,25 +1071,48 @@ export default function GestaoDashboardPage() {
               <Pie
                 data={distribLigacoesPorVendedor}
                 cx="50%"
-                cy="50%"
+                cy="45%"
                 innerRadius={60}
-                outerRadius={100}
+                outerRadius={90}
                 paddingAngle={5}
                 dataKey="value"
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+                label={false}
+                onCellClick={(_e: unknown, entry: { colaboradorId?: string; payload?: { colaboradorId?: string } }) => {
+                  const id = entry?.colaboradorId ?? entry?.payload?.colaboradorId;
+                  if (id) setFilterVendedor(id);
+                }}
               >
-                {distribLigacoesPorVendedor.map((entry, index) => {
-                  const cores = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#F97316'];
-                  return <Cell key={`cell-${index}`} fill={cores[index % cores.length]} />;
-                })}
+                {distribLigacoesPorVendedor.map((entry, index) => (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={getCorVendedor(entry.colaboradorId)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                ))}
               </Pie>
               <Tooltip 
                 contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #3B82F6', color: '#fff' }}
                 labelStyle={{ color: '#fff' }}
+                formatter={(value: number, name: string, props: { payload?: { value: number; name: string } }) => {
+                  const pct = totalPie > 0 ? ((value / totalPie) * 100).toFixed(1) : '0';
+                  return [`${value.toLocaleString('pt-BR')} (${pct}%)`, name];
+                }}
+              />
+              <Legend
+                layout="horizontal"
+                align="center"
+                verticalAlign="bottom"
+                wrapperStyle={{ paddingTop: 12 }}
+                formatter={(value, entry) => {
+                  const item = distribLigacoesPorVendedor.find(d => d.name === value);
+                  const pct = item && totalPie > 0 ? ((item.value / totalPie) * 100).toFixed(1) : '0';
+                  return <span style={{ color: '#fff', fontSize: 12 }}>{value}: {pct}%</span>;
+                }}
               />
             </PieChart>
           </ResponsiveContainer>
           </div>
+          <p className="text-xs text-gray-400 mt-2">Clique em uma fatia para filtrar por esse vendedor.</p>
         </div>
 
         {/* Gráfico de área - Evolução temporal */}
@@ -1066,10 +1141,26 @@ export default function GestaoDashboardPage() {
                 contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #3B82F6', color: '#fff' }}
                 labelStyle={{ color: '#fff' }}
               />
-              <Area type="monotone" dataKey="total" stroke="#3B82F6" fillOpacity={1} fill="url(#colorTotal)" />
+              <Area
+                type="monotone"
+                dataKey="total"
+                stroke="#3B82F6"
+                fillOpacity={1}
+                fill="url(#colorTotal)"
+                style={{ cursor: 'pointer' }}
+                dot={{ r: 4, cursor: 'pointer' }}
+                activeDot={{ r: 6, cursor: 'pointer', onClick: (_e: unknown, point: { payload?: { data?: string }; data?: string }) => {
+                  const data = point?.payload?.data ?? point?.data;
+                  if (data) {
+                    setFilterDataInicio(data);
+                    setFilterDataFim(data);
+                  }
+                } }}
+              />
             </AreaChart>
           </ResponsiveContainer>
           </div>
+          <p className="text-xs text-gray-400 mt-2">Clique em um ponto (bolinha) para filtrar por essa data.</p>
         </div>
       </div>
 
@@ -1188,13 +1279,13 @@ export default function GestaoDashboardPage() {
               <Legend wrapperStyle={{ color: '#fff', fontSize: '12px' }} />
               {chartComparativoSemanas.map((weekKey, index) => {
                 const label = semanasComLabels.find(s => s.key === weekKey)?.label ?? weekKey;
-                const cores = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+                const cor = CORES_VENDEDORES[index % CORES_VENDEDORES.length];
                 return (
                   <Line
                     key={weekKey}
                     type="monotone"
                     dataKey={label}
-                    stroke={cores[index % cores.length]}
+                    stroke={cor}
                     strokeWidth={2}
                     dot={{ r: 4 }}
                   />
