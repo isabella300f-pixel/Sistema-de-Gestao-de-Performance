@@ -1077,9 +1077,8 @@ export default function GestaoDashboardPage() {
                 paddingAngle={5}
                 dataKey="value"
                 label={false}
-                onCellClick={(_e: unknown, entry: { colaboradorId?: string; payload?: { colaboradorId?: string } }) => {
-                  const id = entry?.colaboradorId ?? entry?.payload?.colaboradorId;
-                  if (id) setFilterVendedor(id);
+                onClick={(data: { colaboradorId?: string }, _index: number) => {
+                  if (data?.colaboradorId) setFilterVendedor(data.colaboradorId);
                 }}
               >
                 {distribLigacoesPorVendedor.map((entry, index) => (
