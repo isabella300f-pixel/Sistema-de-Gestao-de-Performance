@@ -1148,18 +1148,12 @@ export default function GestaoDashboardPage() {
                 fill="url(#colorTotal)"
                 style={{ cursor: 'pointer' }}
                 dot={{ r: 4, cursor: 'pointer' }}
-                activeDot={{ r: 6, cursor: 'pointer', onClick: (_e: unknown, point: { payload?: { data?: string }; data?: string }) => {
-                  const data = point?.payload?.data ?? point?.data;
-                  if (data) {
-                    setFilterDataInicio(data);
-                    setFilterDataFim(data);
-                  }
-                } }}
+                activeDot={{ r: 6, cursor: 'pointer' }}
               />
             </AreaChart>
           </ResponsiveContainer>
           </div>
-          <p className="text-xs text-gray-400 mt-2">Clique em um ponto (bolinha) para filtrar por essa data.</p>
+          <p className="text-xs text-gray-400 mt-2">Use os filtros de Data Início e Data Fim acima para filtrar por período.</p>
         </div>
       </div>
 
