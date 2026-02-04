@@ -997,7 +997,7 @@ export default function GestaoDashboardPage() {
               <CartesianGrid strokeDasharray="3 3" stroke="#3B82F6" opacity={0.3} />
               <XAxis
                 dataKey="dia"
-                tick={(props: { x?: number; y?: number; value?: string; payload?: { value?: string }; textAnchor?: string }, value?: string) => {
+                tick={(props: { x?: number; y?: number; value?: string; payload?: { value?: string }; textAnchor?: 'start' | 'middle' | 'end' | 'inherit' }, value?: string) => {
                   const dia = value ?? props?.value ?? props?.payload?.value ?? '';
                   return (
                     <g transform={`translate(${props.x},${props.y})`}>
