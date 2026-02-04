@@ -989,15 +989,32 @@ export default function GestaoDashboardPage() {
         </div>
 
         {/* Gráfico de barras empilhadas por dia da semana */}
-        <div className="card-white p-4 sm:p-6 min-h-0">
+        <div className="card-white p-4 sm:p-6 min-h-0 overflow-visible">
           <h2 className="text-base sm:text-lg font-semibold text-white mb-4">Valor da Métrica ({labelMetricaSelecionada}) por Dia por Vendedor</h2>
-          <div className="chart-responsive">
+          <div className="chart-responsive overflow-visible pt-2">
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={chartDataPorDiaSemana}>
               <CartesianGrid strokeDasharray="3 3" stroke="#3B82F6" opacity={0.3} />
-              <XAxis 
-                dataKey="dia" 
+              <XAxis
+                dataKey="dia"
                 tick={{ fill: '#fff', fontSize: 12 }}
+                tick={(props: { x?: number; y?: number; value?: string; payload?: { value?: string }; textAnchor?: string }, value?: string) => {
+                  const dia = value ?? props?.value ?? props?.payload?.value ?? '';
+                  return (
+                    <g transform={`translate(${props.x},${props.y})`}>
+                      <text
+                        textAnchor={props.textAnchor ?? 'middle'}
+                        fill="#fff"
+                        fontSize={12}
+                        dy={8}
+                        className="cursor-pointer hover:underline"
+                        onClick={() => dia && setFilterDiaSemana(dia)}
+                      >
+                        {dia}
+                      </text>
+                    </g>
+                  );
+                }}
               />
               <YAxis tick={{ fill: '#fff' }} />
               <Tooltip 
@@ -1056,16 +1073,16 @@ export default function GestaoDashboardPage() {
             </BarChart>
           </ResponsiveContainer>
           </div>
-          <p className="text-xs text-gray-400 mt-2">Clique em um segmento ou na legenda para filtrar por vendedor/dia.</p>
+          <p className="text-xs text-gray-400 mt-2">Clique no nome do dia (Segunda, Terça…) ou em um segmento/legenda para filtrar.</p>
         </div>
       </div>
 
       {/* Gráficos Adicionais */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Gráfico de rosca - Distribuição por vendedor (legenda abaixo evita corte de texto) */}
-        <div className="card-white p-4 sm:p-6">
+        <div className="card-white p-4 sm:p-6 overflow-visible">
           <h2 className="text-base sm:text-lg font-semibold text-white mb-4">{labelMetricaSelecionada} por Vendedor</h2>
-          <div className="chart-responsive">
+          <div className="chart-responsive overflow-visible pt-2">
           <ResponsiveContainer width="100%" height={280}>
             <PieChart>
               <Pie
@@ -1089,12 +1106,20 @@ export default function GestaoDashboardPage() {
                   />
                 ))}
               </Pie>
-              <Tooltip 
+              <Tooltip
                 contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #3B82F6', color: '#fff' }}
                 labelStyle={{ color: '#fff' }}
-                formatter={(value: number, name: string, props: { payload?: { value: number; name: string } }) => {
+                content={({ active, payload }) => {
+                  if (!active || !payload?.length) return null;
+                  const item = payload[0].payload ?? payload[0];
+                  const name = item.name ?? '';
+                  const value = Number(item.value) || 0;
                   const pct = totalPie > 0 ? ((value / totalPie) * 100).toFixed(1) : '0';
-                  return [`${value.toLocaleString('pt-BR')} (${pct}%)`, name];
+                  return (
+                    <div className="px-3 py-2 rounded border border-blue-500/50 bg-gray-900">
+                      <span className="text-white font-medium">{name}: {value.toLocaleString('pt-BR')} ({pct}%)</span>
+                    </div>
+                  );
                 }}
               />
               <Legend
