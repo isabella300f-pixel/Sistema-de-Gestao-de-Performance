@@ -467,42 +467,60 @@ export default function GestaoDashboardPage() {
     .sort((a, b) => b.value - a.value);
   const totalPie = distribLigacoesPorVendedor.reduce((s, d) => s + d.value, 0);
 
-  // Semanas no formato segunda a domingo (Monday = início da semana)
+  // Semanas no formato segunda a domingo (Monday = início da semana), data local
   const getMonday = (d: Date): string => {
-    const date = new Date(d);
+    const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
     const day = date.getDay(); // 0=dom, 1=seg, ...
     const diff = day === 0 ? 6 : day - 1;
     date.setDate(date.getDate() - diff);
-    return date.toISOString().slice(0, 10);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   };
   const formatDDMM = (s: string) => {
     const [y, m, d] = s.split('-').map(Number);
     return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`;
   };
+  // Datas em YYYY-MM-DD como data local (igual planilha/Supabase), evita bug de timezone
+  const parseDateLocal = (dateStr: string): Date => {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
   const addDays = (dateStr: string, days: number): string => {
-    const d = new Date(dateStr);
+    const d = parseDateLocal(dateStr);
     d.setDate(d.getDate() + days);
-    return d.toISOString().slice(0, 10);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
   const diasSemanaChart = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
-  const semanasUnicas = Array.from(
-    new Set(registrosFiltrados.map(r => getMonday(new Date(r.data))))
-  ).sort();
-  const semanasComLabels: { key: string; label: string }[] = semanasUnicas.map((key, i) => {
-    const seg = key;
+  // Semanas coerentes com a data filtrada: todas as semanas no intervalo [início, fim], mesmo sem dados
+  const semanasNoPeriodoFiltrado: string[] = (() => {
+    const inicio = normalizarDataFiltro(filterDataInicio?.trim() || '');
+    const fim = normalizarDataFiltro(filterDataFim?.trim() || '');
+    if (inicio && fim && inicio <= fim) {
+      const lista: string[] = [];
+      let seg = getMonday(parseDateLocal(inicio));
+      const fimStr = fim;
+      while (seg <= fimStr) {
+        lista.push(seg);
+        seg = addDays(seg, 7);
+      }
+      return lista.sort();
+    }
+    // Sem filtro de data: usar semanas que existem nos registros (data local = planilha/Supabase)
+    return Array.from(new Set(registrosFiltrados.map(r => getMonday(parseDateLocal(r.data))))).sort();
+  })();
+  const semanasComLabels: { key: string; label: string }[] = semanasNoPeriodoFiltrado.map((key, i) => {
     const dom = addDays(key, 6);
-    return { key, label: `Semana ${i + 1} (${formatDDMM(seg)} - ${formatDDMM(dom)})` };
+    return { key, label: `Semana ${i + 1} (${formatDDMM(key)} - ${formatDDMM(dom)})` };
   });
 
-  // Dados do gráfico de linha: comparar semanas por vendedor (métrica selecionada por dia da semana)
+  // Dados do gráfico comparativo: mesma fonte dos outros gráficos (registrosFiltrados = planilha sincronizada com Supabase)
   const chartDataComparativo = (() => {
     if (!chartComparativoVendedor || chartComparativoSemanas.length === 0) return [];
     return diasSemanaChart.map((dia, idx) => {
       const point: Record<string, string | number> = { dia };
       chartComparativoSemanas.forEach((weekKey) => {
         const weekLabel = semanasComLabels.find(s => s.key === weekKey)?.label ?? weekKey;
-        const dateStr = addDays(weekKey, idx);
+        const dateStr = addDays(weekKey, idx); // data local YYYY-MM-DD (igual planilha/Supabase)
         const total = registrosFiltrados
           .filter(r => r.colaboradorId === chartComparativoVendedor && r.data === dateStr)
           .reduce((s, r) => s + getValorMetrica(r), 0);
@@ -1081,15 +1099,15 @@ export default function GestaoDashboardPage() {
         {/* Gráfico de rosca - Distribuição por vendedor (legenda abaixo evita corte de texto) */}
         <div className="card-white p-4 sm:p-6 overflow-visible">
           <h2 className="text-base sm:text-lg font-semibold text-white mb-4">{labelMetricaSelecionada} por Vendedor</h2>
-          <div className="chart-responsive overflow-visible pt-2">
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
+          <div className="chart-responsive overflow-visible pt-8 pb-2">
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart margin={{ top: 20, bottom: 10 }}>
               <Pie
                 data={distribLigacoesPorVendedor}
                 cx="50%"
-                cy="45%"
-                innerRadius={60}
-                outerRadius={90}
+                cy="48%"
+                innerRadius={58}
+                outerRadius={82}
                 paddingAngle={5}
                 dataKey="value"
                 label={false}
@@ -1129,13 +1147,24 @@ export default function GestaoDashboardPage() {
                 formatter={(value, entry) => {
                   const item = distribLigacoesPorVendedor.find(d => d.name === value);
                   const pct = item && totalPie > 0 ? ((item.value / totalPie) * 100).toFixed(1) : '0';
-                  return <span style={{ color: '#fff', fontSize: 12 }}>{value}: {pct}%</span>;
+                  return (
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => item?.colaboradorId && setFilterVendedor(item.colaboradorId)}
+                      onKeyDown={(e) => e.key === 'Enter' && item?.colaboradorId && setFilterVendedor(item.colaboradorId)}
+                      style={{ color: '#fff', fontSize: 12 }}
+                      className="cursor-pointer hover:underline"
+                    >
+                      {value}: {pct}%
+                    </span>
+                  );
                 }}
               />
             </PieChart>
           </ResponsiveContainer>
           </div>
-          <p className="text-xs text-gray-400 mt-2">Clique em uma fatia para filtrar por esse vendedor.</p>
+          <p className="text-xs text-gray-400 mt-2">Clique em uma fatia ou na legenda para filtrar por vendedor.</p>
         </div>
 
         {/* Gráfico de área - Evolução temporal */}
@@ -1181,10 +1210,10 @@ export default function GestaoDashboardPage() {
         </div>
       </div>
 
-      {/* Gráfico comparativo de semanas por vendedor (segunda a domingo) */}
+      {/* Gráfico comparativo de semanas por vendedor (segunda a domingo) — dados da planilha (sincronizada com Supabase) */}
       <div className="card-white p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Comparativo de semanas por vendedor</h2>
-        <p className="text-sm text-gray-400 mb-4">Compare a métrica ({labelMetricaSelecionada}) do vendedor entre semanas. Cada semana é de segunda a domingo.</p>
+        <p className="text-sm text-gray-400 mb-4">Compare a métrica ({labelMetricaSelecionada}) do vendedor entre semanas. Cada semana é de segunda a domingo. Dados do mesmo período e fonte dos demais gráficos (planilha/Supabase).</p>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
           <div className="relative" ref={comparativoVendedorRef}>
             <label className="block text-xs text-gray-400 mb-1">Vendedor</label>
@@ -1261,7 +1290,9 @@ export default function GestaoDashboardPage() {
                   </label>
                 ))}
                 {semanasComLabels.length === 0 && (
-                  <div className="px-4 py-3 text-sm text-gray-500">Nenhuma semana nos dados filtrados</div>
+                  <div className="px-4 py-3 text-sm text-gray-500">
+                    {filterDataInicio && filterDataFim ? 'Nenhuma semana no período selecionado. Ajuste Data Início e Data Fim.' : 'Defina Data Início e Data Fim para ver as semanas do período.'}
+                  </div>
                 )}
               </div>
             )}
