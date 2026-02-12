@@ -132,7 +132,10 @@ export async function GET(request: Request) {
     const bust = searchParams.get('_') || String(Date.now());
 
     let result = await fetchViaApi();
-    if (!result) result = await fetchViaPublishedUrl(bust);
+    // Se API não retornou dados úteis (vazio, erro ou parse falhou), tentar CSV publicado
+    if (!(result?.ok && Array.isArray(result.data) && result.data.length > 0)) {
+      result = await fetchViaPublishedUrl(bust);
+    }
 
     if (result?.ok && Array.isArray(result.data) && result.data.length > 0) {
       const rows = result.data as SheetRowRaw[];
