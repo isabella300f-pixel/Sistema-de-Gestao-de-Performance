@@ -479,6 +479,12 @@ export default function GestaoDashboardPage() {
     const [y, m, d] = s.split('-').map(Number);
     return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`;
   };
+  /** Formata data para eixo do gráfico — evita bug de timezone (new Date('YYYY-MM-DD') vira dia anterior em UTC-3) */
+  const formatDataEixo = (value: string | number) => {
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return formatDDMM(value);
+    const date = new Date(value);
+    return `${date.getDate()}/${date.getMonth() + 1}`;
+  };
   // Datas em YYYY-MM-DD como data local (igual planilha/Supabase), evita bug de timezone
   const parseDateLocal = (dateStr: string): Date => {
     const [y, m, d] = dateStr.split('-').map(Number);
@@ -945,10 +951,7 @@ export default function GestaoDashboardPage() {
               <XAxis 
                 dataKey="data" 
                 tick={{ fill: '#fff', fontSize: 11 }}
-                tickFormatter={(value) => {
-                  const date = new Date(value);
-                  return `${date.getDate()}/${date.getMonth() + 1}`;
-                }}
+                tickFormatter={formatDataEixo}
               />
               <YAxis tick={{ fill: '#fff' }} domain={[0, 250]} />
               <Tooltip 
@@ -1183,10 +1186,7 @@ export default function GestaoDashboardPage() {
               <XAxis 
                 dataKey="data" 
                 tick={{ fill: '#fff', fontSize: 12 }}
-                tickFormatter={(value) => {
-                  const date = new Date(value);
-                  return `${date.getDate()}/${date.getMonth() + 1}`;
-                }}
+                tickFormatter={formatDataEixo}
               />
               <YAxis tick={{ fill: '#fff' }} />
               <Tooltip 

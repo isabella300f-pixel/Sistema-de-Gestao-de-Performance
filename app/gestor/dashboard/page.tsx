@@ -85,6 +85,16 @@ export default function GestorDashboard() {
     load();
   }, [router]);
 
+  /** Formata data para eixo do gráfico — evita bug de timezone (new Date('YYYY-MM-DD') vira dia anterior em UTC-3) */
+  const formatDataEixo = (value: string | number) => {
+    if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+      const [y, m, d] = value.split('-').map(Number);
+      return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`;
+    }
+    const date = new Date(value);
+    return `${date.getDate()}/${date.getMonth() + 1}`;
+  };
+
   const getStatus11 = (colaboradorId: string) => {
     const ultimaAvaliacao = avaliacoes
       .filter(a => a.colaboradorId === colaboradorId && a.status === 'finalizado')
@@ -200,10 +210,7 @@ export default function GestorDashboard() {
                   <XAxis 
                     dataKey="data" 
                     tick={{ fill: '#fff', fontSize: 11 }}
-                    tickFormatter={(value) => {
-                      const date = new Date(value);
-                      return `${date.getDate()}/${date.getMonth() + 1}`;
-                    }}
+                    tickFormatter={formatDataEixo}
                   />
                   <YAxis tick={{ fill: '#fff' }} />
                   <Tooltip 
