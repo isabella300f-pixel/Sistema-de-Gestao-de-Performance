@@ -23,7 +23,8 @@ const FETCH_HEADERS = {
  * GET /api/sheet/registros-diarios
  * Busca os dados atualizados da planilha — sempre dinâmico, sem cache.
  * Retorna exatamente o que está na planilha; sem dados inventados.
- * Prioridade: 1) Google Sheets API v4 (se configurado) 2) URL publicada (CSV).
+ * Prioridade: 1) URL publicada (CSV) — mapeamento correto das colunas
+ *             2) Google Sheets API v4 — fallback se CSV falhar
  */
 export const maxDuration = 30;
 
@@ -131,10 +132,10 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const bust = searchParams.get('_') || String(Date.now());
 
-    let result = await fetchViaApi();
-    // Se API não retornou dados úteis (vazio, erro ou parse falhou), tentar CSV publicado
+    // CSV primeiro (mapeamento correto). API como fallback se CSV falhar.
+    let result = await fetchViaPublishedUrl(bust);
     if (!(result?.ok && Array.isArray(result.data) && result.data.length > 0)) {
-      result = await fetchViaPublishedUrl(bust);
+      result = await fetchViaApi();
     }
 
     if (result?.ok && Array.isArray(result.data) && result.data.length > 0) {
