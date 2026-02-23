@@ -50,9 +50,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data ?? []);
   }
 
-  const { data: colab } = await supabase.from('colaboradores').select('id').eq('user_id', user.id).single();
-  if (!colab && !isRH) return NextResponse.json([], { status: 200 });
-
   if (isRH) {
     const { data, error } = await supabase
       .from('registros_ponto')
@@ -63,6 +60,9 @@ export async function GET(request: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json(data ?? []);
   }
+
+  const { data: colab } = await supabase.from('colaboradores').select('id').eq('user_id', user.id).single();
+  if (!colab) return NextResponse.json([], { status: 200 });
 
   const { data, error } = await supabase
     .from('registros_ponto')
