@@ -5,7 +5,23 @@ import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { SolicitacaoRH, TipoSolicitacao } from '@/types';
 import { formatDate, formatDateTime } from '@/lib/utils';
-import { ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle, MessageSquare } from 'lucide-react';
+import { mapRowToSolicitacao } from '@/lib/solicitacoes-api';
+import { ArrowLeft, Clock, CheckCircle, XCircle, AlertCircle, MessageSquare, Send } from 'lucide-react';
+
+function mapDetailToSolicitacao(raw: Record<string, unknown>): SolicitacaoRH {
+  const sol = mapRowToSolicitacao(raw);
+  const msgs = (raw.mensagens as Array<Record<string, unknown>>) || [];
+  sol.mensagens = msgs.map((m: Record<string, unknown>) => ({
+    id: String(m.id),
+    solicitacaoId: String((m as { solicitacaoId?: string }).solicitacaoId ?? raw.id),
+    remetenteId: String(m.remetenteId ?? m.remetente_id),
+    remetenteNome: String((m as { remetenteNome?: string }).remetenteNome ?? ''),
+    remetenteTipo: ((m as { remetenteTipo?: string }).remetenteTipo ?? m.remetente_tipo) as 'colaborador' | 'rh',
+    mensagem: String(m.mensagem),
+    data: String(m.data ?? m.criado_em),
+  }));
+  return sol;
+}
 
 export default function DetalhesSolicitacaoPage() {
   const router = useRouter();
@@ -13,6 +29,15 @@ export default function DetalhesSolicitacaoPage() {
   const solicitacaoId = params.id as string;
   const [solicitacao, setSolicitacao] = useState<SolicitacaoRH | null>(null);
   const [loading, setLoading] = useState(true);
+  const [novaMensagem, setNovaMensagem] = useState('');
+  const [enviando, setEnviando] = useState(false);
+
+  const loadDetail = async () => {
+    const res = await fetch(`/api/solicitacoes/${solicitacaoId}`, { credentials: 'include' });
+    if (!res.ok) return null;
+    const raw = await res.json();
+    return mapDetailToSolicitacao(raw);
+  };
 
   useEffect(() => {
     const currentUserStr = localStorage.getItem('currentUser');
@@ -21,48 +46,86 @@ export default function DetalhesSolicitacaoPage() {
       return;
     }
 
-    try {
-      const currentUser = JSON.parse(currentUserStr);
-      if (currentUser.role !== 'colaborador') {
-        router.push('/');
-        return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const currentUser = JSON.parse(currentUserStr);
+        if (currentUser.role !== 'colaborador') {
+          router.push('/');
+          return;
+        }
+        const data = await loadDetail();
+        if (cancelled) return;
+        if (data) {
+          setSolicitacao(data);
+        } else {
+          setSolicitacao({
+            id: solicitacaoId,
+            colaboradorId: currentUser.id,
+            protocolo: 'SOL-2024-001',
+            tipo: 'indisponibilidade_temporaria',
+            dataInicio: '2024-12-20',
+            dataTermino: '2024-12-22',
+            tipoPeriodo: 'integral',
+            motivo: 'Compromisso médico',
+            impactoAtividades: true,
+            impactoDetalhado: 'Não conseguirei atender ligações durante o período',
+            reposicao: 'alinhado',
+            pessoaReposicao: 'Maria Santos',
+            status: 'em_analise',
+            dataCriacao: '2024-12-10',
+            dataAtualizacao: '2024-12-10',
+            mensagens: [
+              { id: '1', solicitacaoId, remetenteId: 'rh-1', remetenteNome: 'RH', remetenteTipo: 'rh', mensagem: 'Sua solicitação está em análise. Retornaremos em até 48h.', data: '2024-12-10T10:00:00' },
+            ],
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          const currentUser = JSON.parse(currentUserStr || '{}');
+          setSolicitacao({
+            id: solicitacaoId,
+            colaboradorId: currentUser.id || 'colab-1',
+            protocolo: 'SOL-2024-001',
+            tipo: 'indisponibilidade_temporaria',
+            motivo: 'Compromisso médico',
+            status: 'em_analise',
+            dataCriacao: '2024-12-10',
+            dataAtualizacao: '2024-12-10',
+            mensagens: [],
+          });
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      // Dados simulados
-      setSolicitacao({
-        id: solicitacaoId,
-        colaboradorId: currentUser.id,
-        protocolo: 'SOL-2024-001',
-        tipo: 'indisponibilidade_temporaria',
-        dataInicio: '2024-12-20',
-        dataTermino: '2024-12-22',
-        tipoPeriodo: 'integral',
-        motivo: 'Compromisso médico',
-        impactoAtividades: true,
-        impactoDetalhado: 'Não conseguirei atender ligações durante o período',
-        reposicao: 'alinhado',
-        pessoaReposicao: 'Maria Santos',
-        status: 'em_analise',
-        dataCriacao: '2024-12-10',
-        dataAtualizacao: '2024-12-10',
-        mensagens: [
-          {
-            id: '1',
-            solicitacaoId: solicitacaoId,
-            remetenteId: 'rh-1',
-            remetenteNome: 'Adriana (RH)',
-            remetenteTipo: 'rh',
-            mensagem: 'Sua solicitação está em análise. Retornaremos em até 48h.',
-            data: '2024-12-10T10:00:00',
-          },
-        ],
-      });
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-    } finally {
-      setLoading(false);
-    }
+    })();
+    return () => { cancelled = true; };
   }, [router, solicitacaoId]);
+
+  const enviarMensagem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const msg = novaMensagem.trim();
+    if (!msg || enviando) return;
+    setEnviando(true);
+    try {
+      const res = await fetch(`/api/solicitacoes/${solicitacaoId}/mensagens`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mensagem: msg }),
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setNovaMensagem('');
+        const updated = await loadDetail();
+        if (updated) setSolicitacao(updated);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        if (res.status !== 401 && res.status !== 503) alert(err?.error || 'Erro ao enviar mensagem.');
+      }
+    } finally {
+      setEnviando(false);
+    }
+  };
 
   const getTipoLabel = (tipo: TipoSolicitacao): string => {
     const labels: Record<TipoSolicitacao, string> = {
@@ -158,7 +221,7 @@ export default function DetalhesSolicitacaoPage() {
                 solicitacao.status === 'aguardando_documentos' ? 'bg-orange-100 text-orange-800' :
                 'bg-blue-100 text-blue-800'
               }`}>
-                {solicitacao.status}
+                {solicitacao.status === 'aprovado' ? 'Aprovado' : solicitacao.status === 'rejeitado' ? 'Rejeitado' : solicitacao.status === 'em_analise' ? 'Em Análise' : solicitacao.status === 'aguardando_documentos' ? 'Aguardando Documentos' : 'Aberto'}
               </span>
             </div>
 
@@ -202,13 +265,13 @@ export default function DetalhesSolicitacaoPage() {
           </div>
 
           {/* Mensagens */}
-          {solicitacao.mensagens && solicitacao.mensagens.length > 0 && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <MessageSquare size={20} />
-                Histórico de Mensagens
-              </h2>
-              <div className="space-y-4">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <MessageSquare size={20} />
+              Histórico de Mensagens
+            </h2>
+            {solicitacao.mensagens && solicitacao.mensagens.length > 0 ? (
+              <div className="space-y-4 mb-4">
                 {solicitacao.mensagens.map((msg) => (
                   <div
                     key={msg.id}
@@ -224,14 +287,28 @@ export default function DetalhesSolicitacaoPage() {
                   </div>
                 ))}
               </div>
-              <Link
-                href={`/colaborador/chat?solicitacao=${solicitacao.id}`}
-                className="mt-4 inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+            ) : (
+              <p className="text-gray-500 text-sm mb-4">Nenhuma mensagem ainda. Envie uma mensagem abaixo para falar com o RH.</p>
+            )}
+            <form onSubmit={enviarMensagem} className="flex gap-2">
+              <input
+                type="text"
+                value={novaMensagem}
+                onChange={(e) => setNovaMensagem(e.target.value)}
+                placeholder="Digite sua mensagem..."
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                disabled={enviando}
+              />
+              <button
+                type="submit"
+                disabled={enviando || !novaMensagem.trim()}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
               >
-                Continuar Conversa
-              </Link>
-            </div>
-          )}
+                <Send size={18} />
+                Enviar
+              </button>
+            </form>
+          </div>
         </div>
 
         {/* Timeline */}

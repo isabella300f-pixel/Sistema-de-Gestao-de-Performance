@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { getCurrentUser } from '@/lib/auth';
 import type { User } from '@/types';
-import { Users, FileText, BarChart3, Clock, Briefcase, GraduationCap, FolderOpen, Heart, DollarSign, MessageSquare, Settings } from 'lucide-react';
+import { Users, FileText, BarChart3, Clock, Briefcase, GraduationCap, FolderOpen, Heart, DollarSign, Settings, Calendar } from 'lucide-react';
 
 export default function RHLayout({
   children,
@@ -31,9 +31,10 @@ export default function RHLayout({
 
   const menuItems = [
     { label: 'Usuários', href: '/rh/usuarios', icon: <Settings size={20} /> },
-    { label: 'Chat', href: '/rh/chat', icon: <MessageSquare size={20} /> },
+    { label: 'Solicitações', href: '/rh/solicitacoes', icon: <FileText size={20} /> },
     { label: 'Gestão de Pessoas', href: '/rh/gestao-pessoas', icon: <Users size={20} /> },
     { label: 'Controle de Ponto', href: '/rh/ponto', icon: <Clock size={20} /> },
+    { label: 'Disponibilidade', href: '/rh/disponibilidade', icon: <Calendar size={20} /> },
     { label: 'Recrutamento', href: '/rh/recrutamento', icon: <Briefcase size={20} /> },
     { label: 'Treinamentos', href: '/rh/treinamentos', icon: <GraduationCap size={20} /> },
     { label: 'Documentos', href: '/rh/documentos', icon: <FolderOpen size={20} /> },

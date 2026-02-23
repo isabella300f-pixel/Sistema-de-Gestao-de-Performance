@@ -5,16 +5,51 @@ import { useRouter } from 'next/navigation';
 import { Colaborador, RegistroPonto, Escala } from '@/types';
 import { getAllColaboradores } from '@/lib/data';
 import { formatDate } from '@/lib/utils';
-import { Clock, Calendar, AlertCircle, CheckCircle, Search, Filter } from 'lucide-react';
+import { Clock, Calendar, AlertCircle, CheckCircle } from 'lucide-react';
+
+function mapRowToRegistro(r: Record<string, unknown> & { colaboradores?: { nome?: string } }): RegistroPonto & { colaboradorNome?: string } {
+  return {
+    id: String(r.id),
+    colaboradorId: String(r.colaborador_id),
+    data: String(r.data),
+    entrada: r.entrada ? String(r.entrada).slice(0, 5) : undefined,
+    saida: r.saida ? String(r.saida).slice(0, 5) : undefined,
+    entradaAlmoco: r.entrada_almoco ? String(r.entrada_almoco).slice(0, 5) : undefined,
+    saidaAlmoco: r.saida_almoco ? String(r.saida_almoco).slice(0, 5) : undefined,
+    horasTrabalhadas: r.horas_trabalhadas != null ? Number(r.horas_trabalhadas) : undefined,
+    status: (r.status as RegistroPonto['status']) || 'normal',
+    aprovado: Boolean(r.aprovado),
+    colaboradorNome: r.colaboradores?.nome,
+  };
+}
 
 export default function RHPontoPage() {
   const router = useRouter();
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
-  const [registros, setRegistros] = useState<RegistroPonto[]>([]);
+  const [registros, setRegistros] = useState<(RegistroPonto & { colaboradorNome?: string })[]>([]);
   const [view, setView] = useState<'espelho' | 'escalas' | 'banco-horas' | 'inconsistencias'>('espelho');
   const [colaboradorSelecionado, setColaboradorSelecionado] = useState<string>('');
   const [mes, setMes] = useState<string>(new Date().toISOString().slice(0, 7));
   const [loading, setLoading] = useState(true);
+  const [validandoId, setValidandoId] = useState<string | null>(null);
+
+  const validarRegistro = async (reg: RegistroPonto & { colaboradorNome?: string }) => {
+    if (validandoId || reg.aprovado) return;
+    setValidandoId(reg.id);
+    try {
+      const res = await fetch(`/api/ponto/${reg.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ aprovado: true }),
+        credentials: 'include',
+      });
+      if (res.ok) {
+        setRegistros(prev => prev.map(r => r.id === reg.id ? { ...r, aprovado: true } : r));
+      }
+    } finally {
+      setValidandoId(null);
+    }
+  };
 
   useEffect(() => {
     const currentUserStr = localStorage.getItem('currentUser');
@@ -23,45 +58,57 @@ export default function RHPontoPage() {
       return;
     }
 
-    try {
-      const currentUser = JSON.parse(currentUserStr);
-      if (currentUser.role !== 'rh') {
-        router.push('/');
-        return;
-      }
-
-      const cols = getAllColaboradores().filter(c => c.status === 'ativo');
-      setColaboradores(cols);
-      
-      // Simular registros de ponto
-      const registrosSimulados: RegistroPonto[] = [];
-      cols.forEach(colab => {
-        for (let i = 1; i <= 30; i++) {
-          const data = new Date(2024, 0, i);
-          if (data.getDay() !== 0 && data.getDay() !== 6) { // Apenas dias úteis
-            registrosSimulados.push({
-              id: `${colab.id}-${i}`,
-              colaboradorId: colab.id,
-              data: data.toISOString().split('T')[0],
-              entrada: '08:00',
-              saida: '17:00',
-              entradaAlmoco: '12:00',
-              saidaAlmoco: '13:00',
-              horasTrabalhadas: 8,
-              horasExtras: i % 7 === 0 ? 2 : 0,
-              status: i % 10 === 0 ? 'atraso' : 'normal',
-              aprovado: true,
-            });
-          }
+    let cancelled = false;
+    (async () => {
+      try {
+        const currentUser = JSON.parse(currentUserStr);
+        if (currentUser.role !== 'rh') {
+          router.push('/');
+          return;
         }
-      });
-      setRegistros(registrosSimulados);
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
+
+        const cols = getAllColaboradores().filter(c => c.status === 'ativo');
+        setColaboradores(cols);
+
+        const res = await fetch(`/api/ponto?mes=${mes}`, { credentials: 'include' });
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json();
+          setRegistros(Array.isArray(data) ? data.map((r: Record<string, unknown>) => mapRowToRegistro(r)) : []);
+        } else {
+          const registrosSimulados: (RegistroPonto & { colaboradorNome?: string })[] = [];
+          cols.forEach(colab => {
+            for (let i = 1; i <= 30; i++) {
+              const data = new Date(2024, 0, i);
+              if (data.getDay() !== 0 && data.getDay() !== 6) {
+                registrosSimulados.push({
+                  id: `${colab.id}-${i}`,
+                  colaboradorId: colab.id,
+                  data: data.toISOString().split('T')[0],
+                  entrada: '08:00',
+                  saida: '17:00',
+                  entradaAlmoco: '12:00',
+                  saidaAlmoco: '13:00',
+                  horasTrabalhadas: 8,
+                  status: i % 10 === 0 ? 'atraso' : 'normal',
+                  aprovado: true,
+                  colaboradorNome: colab.name,
+                });
+              }
+            }
+          });
+          setRegistros(registrosSimulados);
+        }
+      } catch {
+        const cols = getAllColaboradores().filter(c => c.status === 'ativo');
+        setColaboradores(cols);
+        setRegistros([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [router, mes]);
 
   const registrosFiltrados = registros.filter(r => {
     const matchColab = colaboradorSelecionado === '' || r.colaboradorId === colaboradorSelecionado;
@@ -172,6 +219,7 @@ export default function RHPontoPage() {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase">Saída</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase">Horas</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase">Status</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-300 uppercase">Validar</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-blue-500/30">
@@ -182,7 +230,7 @@ export default function RHPontoPage() {
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{reg.saidaAlmoco || '-'}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{reg.entradaAlmoco || '-'}</td>
                         <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{reg.saida || '-'}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{reg.horasTrabalhadas || 0}h</td>
+                        <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-300">{reg.horasTrabalhadas ?? '-'}h</td>
                         <td className="px-4 py-3 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${
                             reg.status === 'normal' ? 'bg-green-500/20 text-green-400 border-green-500/50' :
@@ -192,6 +240,18 @@ export default function RHPontoPage() {
                             {reg.status === 'normal' ? <CheckCircle size={12} className="mr-1" /> : <AlertCircle size={12} className="mr-1" />}
                             {reg.status}
                           </span>
+                          {reg.aprovado && <span className="ml-1 text-green-400 text-xs">✓</span>}
+                        </td>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          {!reg.aprovado && (
+                            <button
+                              onClick={() => validarRegistro(reg)}
+                              disabled={!!validandoId}
+                              className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50"
+                            >
+                              {validandoId === reg.id ? '...' : 'Validar'}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -236,8 +296,12 @@ export default function RHPontoPage() {
                       <p className="font-medium text-white">{colab?.name}</p>
                       <p className="text-sm text-gray-400">{formatDate(reg.data)} - {reg.status}</p>
                     </div>
-                    <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">
-                      Ajustar
+                    <button
+                      onClick={() => validarRegistro(reg)}
+                      disabled={!!validandoId || reg.aprovado}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm disabled:opacity-50"
+                    >
+                      {validandoId === reg.id ? '...' : reg.aprovado ? 'Aprovado' : 'Validar'}
                     </button>
                   </div>
                 </div>

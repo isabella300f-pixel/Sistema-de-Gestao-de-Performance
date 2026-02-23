@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { getCurrentUser } from '@/lib/auth';
 import type { User } from '@/types';
-import { FileText, MessageSquare, FolderOpen, Bell, Calendar, HelpCircle, User as UserIcon } from 'lucide-react';
+import { FileText, FolderOpen, Bell, Calendar, HelpCircle, User as UserIcon, Clock } from 'lucide-react';
 
 export default function ColaboradorLayout({
   children,
@@ -31,7 +31,7 @@ export default function ColaboradorLayout({
 
   const menuItems = [
     { label: 'Solicitações', href: '/colaborador/solicitacoes', icon: <FileText size={20} /> },
-    { label: 'Chat com RH', href: '/colaborador/chat', icon: <MessageSquare size={20} /> },
+    { label: 'Ponto', href: '/colaborador/ponto', icon: <Clock size={20} /> },
     { label: 'Meus Documentos', href: '/colaborador/documentos', icon: <FolderOpen size={20} /> },
     { label: 'Comunicados', href: '/colaborador/comunicados', icon: <Bell size={20} /> },
     { label: 'Disponibilidade', href: '/colaborador/disponibilidade', icon: <Calendar size={20} /> },

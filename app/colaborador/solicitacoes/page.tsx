@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { SolicitacaoRH, TipoSolicitacao } from '@/types';
 import { formatDate } from '@/lib/utils';
-import { FileText, Plus, Clock, CheckCircle, XCircle, AlertCircle, Search, Filter } from 'lucide-react';
+import { mapRowToSolicitacao } from '@/lib/solicitacoes-api';
+import { FileText, Plus, Clock, CheckCircle, XCircle, AlertCircle, Search } from 'lucide-react';
 
 export default function ColaboradorSolicitacoesPage() {
   const router = useRouter();
@@ -21,38 +22,67 @@ export default function ColaboradorSolicitacoesPage() {
       return;
     }
 
-    try {
-      const currentUser = JSON.parse(currentUserStr);
-      if (currentUser.role !== 'colaborador') {
-        router.push('/');
-        return;
-      }
+    let cancelled = false;
+    (async () => {
+      try {
+        const currentUser = JSON.parse(currentUserStr);
+        if (currentUser.role !== 'colaborador') {
+          router.push('/');
+          return;
+        }
 
-      // Dados simulados
-      setSolicitacoes([
-        {
-          id: '1',
-          colaboradorId: currentUser.id,
-          protocolo: 'SOL-2024-001',
-          tipo: 'indisponibilidade_temporaria',
-          dataInicio: '2024-12-20',
-          dataTermino: '2024-12-22',
-          tipoPeriodo: 'integral',
-          motivo: 'Compromisso médico',
-          impactoAtividades: true,
-          impactoDetalhado: 'Não conseguirei atender ligações durante o período',
-          reposicao: 'alinhado',
-          pessoaReposicao: 'Maria Santos',
-          status: 'em_analise',
-          dataCriacao: '2024-12-10',
-          dataAtualizacao: '2024-12-10',
-        },
-      ]);
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-    } finally {
-      setLoading(false);
-    }
+        const res = await fetch('/api/solicitacoes', { credentials: 'include' });
+        if (cancelled) return;
+        if (res.ok) {
+          const data = await res.json();
+          const list = Array.isArray(data) ? data.map((r: Record<string, unknown>) => mapRowToSolicitacao(r)) : [];
+          setSolicitacoes(list);
+          setLoading(false);
+          return;
+        }
+        // 401/503: sem sessão Supabase ou API indisponível → usar mock
+        setSolicitacoes([
+          {
+            id: '1',
+            colaboradorId: currentUser.id,
+            protocolo: 'SOL-2024-001',
+            tipo: 'indisponibilidade_temporaria',
+            dataInicio: '2024-12-20',
+            dataTermino: '2024-12-22',
+            tipoPeriodo: 'integral',
+            motivo: 'Compromisso médico',
+            impactoAtividades: true,
+            reposicao: 'alinhado',
+            status: 'em_analise',
+            dataCriacao: '2024-12-10',
+            dataAtualizacao: '2024-12-10',
+          },
+        ]);
+      } catch (error) {
+        if (!cancelled) {
+          const currentUser = JSON.parse(currentUserStr || '{}');
+          setSolicitacoes([
+            {
+              id: '1',
+              colaboradorId: currentUser.id || 'colab-1',
+              protocolo: 'SOL-2024-001',
+              tipo: 'indisponibilidade_temporaria',
+              dataInicio: '2024-12-20',
+              dataTermino: '2024-12-22',
+              motivo: 'Compromisso médico',
+              impactoAtividades: true,
+              reposicao: 'alinhado',
+              status: 'em_analise',
+              dataCriacao: '2024-12-10',
+              dataAtualizacao: '2024-12-10',
+            },
+          ]);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [router]);
 
   const getTipoLabel = (tipo: TipoSolicitacao): string => {
@@ -230,16 +260,8 @@ export default function ColaboradorSolicitacoesPage() {
                   href={`/colaborador/solicitacoes/${solicitacao.id}`}
                   className="text-blue-600 hover:text-blue-700 text-sm font-medium"
                 >
-                  Ver Detalhes
+                  Ver detalhes e mensagens
                 </Link>
-                {solicitacao.status === 'em_analise' && (
-                  <Link
-                    href={`/colaborador/chat?solicitacao=${solicitacao.id}`}
-                    className="text-green-600 hover:text-green-700 text-sm font-medium"
-                  >
-                    Chat com RH
-                  </Link>
-                )}
               </div>
             </div>
           ))

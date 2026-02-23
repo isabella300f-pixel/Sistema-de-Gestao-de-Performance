@@ -10,6 +10,7 @@ import { useForm } from 'react-hook-form';
 interface FormData {
   tipo: TipoSolicitacao;
   tipoDetalhado?: string;
+  prioridade: 'baixa' | 'media' | 'alta';
   dataInicio?: string;
   dataTermino?: string;
   tipoPeriodo?: 'parcial' | 'integral';
@@ -31,6 +32,7 @@ export default function NovaSolicitacaoPage() {
   const { register, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
     defaultValues: {
       tipo: 'indisponibilidade_temporaria',
+      prioridade: 'media',
       impactoAtividades: false,
       reposicao: 'nao_se_aplica',
       confirmacao: false,
@@ -69,13 +71,45 @@ export default function NovaSolicitacaoPage() {
     }
 
     setSubmitting(true);
-    
-    // Simular envio
-    setTimeout(() => {
+    try {
+      const body = {
+        tipo: data.tipo,
+        tipo_detalhado: data.tipoDetalhado || undefined,
+        prioridade: data.prioridade || 'media',
+        motivo: data.motivo,
+        data_inicio: data.dataInicio || undefined,
+        data_termino: data.dataTermino || undefined,
+        impacto_atividades: data.impactoAtividades,
+        reposicao: data.reposicao,
+      };
+      const res = await fetch('/api/solicitacoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const protocolo = json.protocolo || `SOL-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
+        alert(`Solicitação criada com sucesso!\nProtocolo: ${protocolo}`);
+        router.push('/colaborador/solicitacoes');
+        return;
+      }
+      const err = await res.json().catch(() => ({}));
+      if (res.status === 401 || res.status === 503) {
+        const protocolo = `SOL-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
+        alert(`Solicitação criada (modo demonstração).\nProtocolo: ${protocolo}`);
+        router.push('/colaborador/solicitacoes');
+        return;
+      }
+      alert(err?.error || 'Erro ao criar solicitação. Tente novamente.');
+    } catch {
       const protocolo = `SOL-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 1000)).padStart(3, '0')}`;
-      alert(`Solicitação criada com sucesso!\nProtocolo: ${protocolo}`);
+      alert(`Solicitação criada (modo demonstração).\nProtocolo: ${protocolo}`);
       router.push('/colaborador/solicitacoes');
-    }, 1000);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const tiposSolicitacao: { value: TipoSolicitacao; label: string }[] = [
@@ -192,6 +226,17 @@ export default function NovaSolicitacaoPage() {
               />
             </div>
           )}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Prioridade</label>
+            <select
+              {...register('prioridade')}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="baixa">Baixa</option>
+              <option value="media">Média</option>
+              <option value="alta">Alta</option>
+            </select>
+          </div>
         </div>
 
         {/* Período (se aplicável) */}
