@@ -1,15 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authenticateUser, getAllUsers } from '@/lib/data';
 import { createClient } from '@/lib/supabase/client';
 import Logo300F from '@/components/Logo300F';
-import { ChevronRight, Eye, EyeOff, Mail } from 'lucide-react';
+import { ChevronRight, Eye, EyeOff } from 'lucide-react';
 
 const DEV_LOGIN = process.env.NEXT_PUBLIC_DEV_LOGIN === 'true';
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
@@ -268,5 +268,24 @@ export default function LoginPage() {
         <div className="absolute bottom-1/4 left-0 w-96 h-96 bg-ecosystem-red opacity-5 rounded-full blur-3xl" />
       </div>
     </div>
+  );
+}
+
+function LoginFallback() {
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="text-center">
+        <Logo300F variant="dark" />
+        <div className="mt-8 animate-spin rounded-full h-12 w-12 border-b-2 border-ecosystem-red mx-auto" />
+      </div>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFallback />}>
+      <LoginPageContent />
+    </Suspense>
   );
 }
