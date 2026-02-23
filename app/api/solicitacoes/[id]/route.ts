@@ -35,8 +35,8 @@ export async function GET(
   const mapNome: Record<string, string> = {};
   profiles?.forEach((p: { id: string; nome: string }) => { mapNome[p.id] = p.nome; });
 
-  const msgs = (mensagens ?? []).map((m: { remetente_id: string; remetente_tipo: string; mensagem: string; criado_em: string }) => ({
-    id: (m as { id: string }).id,
+  const msgs = (mensagens ?? []).map((m: { id: string; remetente_id: string; remetente_tipo: string; mensagem: string; criado_em: string }) => ({
+    id: m.id,
     solicitacaoId: id,
     remetenteId: m.remetente_id,
     remetenteNome: mapNome[m.remetente_id] ?? (m.remetente_tipo === 'rh' ? 'RH' : 'Colaborador'),
