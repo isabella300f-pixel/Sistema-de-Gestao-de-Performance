@@ -3,8 +3,11 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
-import { Colaborador, Avaliacao11 } from '@/types';
+import type { Colaborador, Avaliacao11 } from '@/types';
 import { getColaboradoresByGestor, getColaboradorById, getUserById, createAvaliacao11 } from '@/lib/data';
+import { createClient } from '@/lib/supabase/client';
+import { getCurrentUser } from '@/lib/auth';
+import { fetchColaboradoresByGestor, type ColaboradorRow } from '@/lib/supabase-queries';
 import { formatDate } from '@/lib/utils';
 import { ArrowLeft, Save, Send } from 'lucide-react';
 
@@ -52,73 +55,114 @@ function Registrar11Content() {
   });
 
   useEffect(() => {
-    const currentUserStr = localStorage.getItem('currentUser');
-    if (!currentUserStr) {
-      router.push('/');
-      return;
-    }
-
-    try {
-      const currentUser = JSON.parse(currentUserStr);
-      const gestor = getUserById(currentUser.id);
-      if (!gestor || gestor.role !== 'gestor') {
-        router.push('/');
+    let cancelled = false;
+    getCurrentUser().then(async (u) => {
+      if (!u || u.role !== 'gestor') {
+        router.replace('/');
         return;
       }
-
-      const cols = getColaboradoresByGestor(gestor.id);
-      setColaboradores(cols);
-
-      if (colaboradorParam) {
-        const colab = getColaboradorById(colaboradorParam);
-        if (colab && colab.gestorId === gestor.id) {
-          setValue('colaboradorId', colaboradorParam);
+      const supabase = createClient();
+      if (supabase) {
+        const rows = await fetchColaboradoresByGestor(supabase, u.id);
+        if (!cancelled) {
+          setColaboradores(rows.map((r: ColaboradorRow) => ({
+            id: r.id,
+            name: r.nome,
+            email: r.email ?? undefined,
+            cargo: r.cargo_nome ?? '',
+            area: r.area,
+            gestorId: r.gestor_id ?? '',
+            gestorNome: r.gestor_nome ?? '',
+            dataAdmissao: r.data_admissao,
+            status: r.status as 'ativo' | 'desligado',
+          })));
         }
+      } else {
+        const gestor = getUserById(u.id);
+        const cols = gestor ? getColaboradoresByGestor(gestor.id) : [];
+        if (!cancelled) setColaboradores(cols);
       }
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-    } finally {
-      setLoading(false);
-    }
+      if (colaboradorParam) setValue('colaboradorId', colaboradorParam);
+      if (!cancelled) setLoading(false);
+    }).catch(() => { setLoading(false); });
+    return () => { cancelled = true; };
   }, [router, colaboradorParam, setValue]);
 
   const onSubmit = async (data: FormData) => {
     setSaving(true);
     try {
-      const currentUserStr = localStorage.getItem('currentUser');
-      if (!currentUserStr) return;
+      const currentUserStr = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
+      const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+      const gestor = currentUser ? getUserById(currentUser.id) : null;
 
-      const currentUser = JSON.parse(currentUserStr);
-      const gestor = getUserById(currentUser.id);
-      if (!gestor) return;
-
-      const avaliacao: Omit<Avaliacao11, 'id' | 'createdAt' | 'updatedAt'> = {
-        colaboradorId: data.colaboradorId,
-        gestorId: gestor.id,
-        data: data.data,
-        dataProxima: data.dataProxima || undefined,
-        leadsTrabalhados: data.leadsTrabalhados as any,
-        qualidadeCRM: data.qualidadeCRM as any,
-        conversaoFunil: data.conversaoFunil as any,
-        motivosPerda: data.motivosPerda as any[],
-        pontosFortes: data.pontosFortes as any[],
-        pontosMelhoria: data.pontosMelhoria as any[],
-        estrategia: data.estrategia as any,
-        motivoEstrategia: data.motivoEstrategia as any,
-        acoesVendedor: data.acoesVendedor,
-        acoesGerente: data.acoesGerente,
-        kpiFoco: data.kpiFoco,
+      const apiBody = {
+        colaborador_id: data.colaboradorId,
+        data_1_1: data.data,
+        data_proxima: data.dataProxima || undefined,
+        leads_trabalhados: data.leadsTrabalhados,
+        qualidade_crm: data.qualidadeCRM,
+        conversao_funil: data.conversaoFunil,
+        motivos_perda: data.motivosPerda ?? [],
+        pontos_fortes: data.pontosFortes ?? [],
+        pontos_melhoria: data.pontosMelhoria ?? [],
+        estrategia: data.estrategia || undefined,
+        motivo_estrategia: data.motivoEstrategia || undefined,
+        acoes_vendedor: data.acoesVendedor || undefined,
+        acoes_gerente: data.acoesGerente || undefined,
+        kpi_foco: data.kpiFoco || undefined,
         status: data.status,
       };
 
-      createAvaliacao11(avaliacao);
+      const res = await fetch('/api/gestor/avaliacoes-1-1', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(apiBody),
+      });
 
-      if (data.status === 'finalizado') {
-        alert('Avaliação 1:1 registrada com sucesso!');
-        router.push('/gestor/dashboard');
-      } else {
-        alert('Rascunho salvo com sucesso!');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.score_performance != null) {
+          alert(`Avaliação 1:1 registrada! Score: ${json.score_performance}`);
+        } else {
+          alert('Avaliação 1:1 registrada com sucesso!');
+        }
+        if (data.status === 'finalizado') router.push('/gestor/dashboard');
+        return;
       }
+
+      if (res.status === 401 || res.status === 500) {
+        const err = await res.json().catch(() => ({}));
+        if (err.error?.includes('não configurado') || res.status === 401) {
+          if (gestor) {
+            const avaliacao: Omit<Avaliacao11, 'id' | 'createdAt' | 'updatedAt'> = {
+              colaboradorId: data.colaboradorId,
+              gestorId: gestor.id,
+              data: data.data,
+              dataProxima: data.dataProxima || undefined,
+              leadsTrabalhados: data.leadsTrabalhados as Avaliacao11['leadsTrabalhados'],
+              qualidadeCRM: data.qualidadeCRM as Avaliacao11['qualidadeCRM'],
+              conversaoFunil: data.conversaoFunil as Avaliacao11['conversaoFunil'],
+              motivosPerda: (data.motivosPerda ?? []) as Avaliacao11['motivosPerda'],
+              pontosFortes: (data.pontosFortes ?? []) as Avaliacao11['pontosFortes'],
+              pontosMelhoria: (data.pontosMelhoria ?? []) as Avaliacao11['pontosMelhoria'],
+              estrategia: data.estrategia as Avaliacao11['estrategia'],
+              motivoEstrategia: data.motivoEstrategia as Avaliacao11['motivoEstrategia'],
+              acoesVendedor: data.acoesVendedor,
+              acoesGerente: data.acoesGerente,
+              kpiFoco: data.kpiFoco,
+              status: data.status,
+            };
+            createAvaliacao11(avaliacao);
+            if (data.status === 'finalizado') {
+              alert('Avaliação 1:1 registrada (modo dev)!');
+              router.push('/gestor/dashboard');
+            } else alert('Rascunho salvo (modo dev)!');
+            return;
+          }
+        }
+      }
+      const err = await res.json().catch(() => ({}));
+      alert(err.error || 'Erro ao salvar avaliação');
     } catch (error) {
       console.error('Erro ao salvar:', error);
       alert('Erro ao salvar avaliação');

@@ -2,11 +2,14 @@
 
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
-import { User } from '@/types';
+import { useState } from 'react';
+import type { User } from '@/types';
 import { LogOut, Menu, X } from 'lucide-react';
 import { storage } from '@/lib/storage';
+import { createClient } from '@/lib/supabase/client';
 import Logo300F from '@/components/Logo300F';
+
+const DEV = process.env.NEXT_PUBLIC_DEV_LOGIN === 'true';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -19,8 +22,13 @@ export default function Layout({ children, user, menuItems }: LayoutProps) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const handleLogout = () => {
-    storage.removeItem('currentUser');
+  const handleLogout = async () => {
+    if (DEV) {
+      storage.removeItem('currentUser');
+    } else {
+      const supabase = createClient();
+      if (supabase) await supabase.auth.signOut();
+    }
     router.push('/');
   };
 

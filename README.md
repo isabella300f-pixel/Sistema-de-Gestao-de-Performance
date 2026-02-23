@@ -35,4 +35,4 @@ Next.js 14 (App Router), TypeScript, Tailwind CSS, React Hook Form, Recharts, Lu
 - `lib/` – integrações, dados, utilitários
 - `types/` – definições TypeScript
 
-Autenticação: fluxo simples por seleção de usuário (localStorage). Em produção, use autenticação robusta (JWT/OAuth).
+Autenticação: em dev (`NEXT_PUBLIC_DEV_LOGIN=true`) login por seleção (localStorage). Em produção, Supabase Auth (email/senha ou magic link). Redirecionamento por role após login. Ver `VERCEL.md` para env vars e deploy.

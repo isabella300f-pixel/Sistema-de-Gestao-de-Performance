@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
-import { User } from '@/types';
+import { getCurrentUser } from '@/lib/auth';
+import type { User } from '@/types';
 import { LayoutDashboard, TrendingUp, TrendingDown, Users, BarChart3, Table } from 'lucide-react';
 
 export default function GestaoLayout({
@@ -17,29 +18,15 @@ export default function GestaoLayout({
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    
     setMounted(true);
-    
-    const timer = setTimeout(() => {
-      try {
-        const currentUserStr = localStorage.getItem('currentUser');
-        if (!currentUserStr) {
-          router.replace('/');
-          return;
-        }
-
-        const currentUser = JSON.parse(currentUserStr) as User;
-        if (currentUser.role !== 'gestao') {
-          router.replace('/');
-          return;
-        }
-        setUser(currentUser);
-      } catch (error) {
-        router.replace('/');
-      }
-    }, 300);
-
-    return () => clearTimeout(timer);
+    let cancelled = false;
+    getCurrentUser().then((u) => {
+      if (cancelled) return;
+      if (!u) { router.replace('/'); return; }
+      if (u.role !== 'gestao') { router.replace('/'); return; }
+      setUser(u as User);
+    }).catch(() => router.replace('/'));
+    return () => { cancelled = true; };
   }, [router]);
 
   const menuItems = [

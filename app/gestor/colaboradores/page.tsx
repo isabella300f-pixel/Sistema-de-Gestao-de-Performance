@@ -3,9 +3,27 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Colaborador } from '@/types';
+import type { Colaborador } from '@/types';
 import { getColaboradoresByGestor, getUserById } from '@/lib/data';
+import { createClient } from '@/lib/supabase/client';
+import { getCurrentUser } from '@/lib/auth';
+import { fetchColaboradoresByGestor, type ColaboradorRow } from '@/lib/supabase-queries';
 import { Users } from 'lucide-react';
+
+function rowToColab(r: ColaboradorRow): Colaborador {
+  return {
+    id: r.id,
+    name: r.nome,
+    email: r.email ?? undefined,
+    cargo: r.cargo_nome ?? '',
+    area: r.area,
+    gestorId: r.gestor_id ?? '',
+    gestorNome: r.gestor_nome ?? '',
+    dataAdmissao: r.data_admissao,
+    dataDesligamento: r.data_desligamento ?? undefined,
+    status: r.status as 'ativo' | 'desligado',
+  };
+}
 
 export default function ColaboradoresPage() {
   const router = useRouter();
@@ -13,27 +31,24 @@ export default function ColaboradoresPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const currentUserStr = localStorage.getItem('currentUser');
-    if (!currentUserStr) {
-      router.push('/');
-      return;
-    }
-
-    try {
-      const currentUser = JSON.parse(currentUserStr);
-      const gestor = getUserById(currentUser.id);
-      if (!gestor || gestor.role !== 'gestor') {
-        router.push('/');
+    let cancelled = false;
+    getCurrentUser().then(async (u) => {
+      if (!u || u.role !== 'gestor') {
+        router.replace('/');
         return;
       }
-
-      const cols = getColaboradoresByGestor(gestor.id);
-      setColaboradores(cols);
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-    } finally {
-      setLoading(false);
-    }
+      const supabase = createClient();
+      if (supabase) {
+        const rows = await fetchColaboradoresByGestor(supabase, u.id);
+        if (!cancelled) setColaboradores(rows.map(rowToColab));
+      } else {
+        const gestor = getUserById(u.id);
+        const cols = gestor ? getColaboradoresByGestor(gestor.id) : [];
+        if (!cancelled) setColaboradores(cols);
+      }
+      if (!cancelled) setLoading(false);
+    }).catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [router]);
 
   if (loading) {

@@ -3,10 +3,27 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Colaborador, PerfilColaborador, HistoricoProfissional, Competencia } from '@/types';
+import type { Colaborador } from '@/types';
 import { getAllColaboradores } from '@/lib/data';
+import { createClient } from '@/lib/supabase/client';
+import { fetchColaboradoresRH, type ColaboradorRow } from '@/lib/supabase-queries';
 import { formatDate, getDaysSince } from '@/lib/utils';
-import { Users, User, TrendingUp, Clock, Search, FileText, Award, Building2 } from 'lucide-react';
+import { Users, User, TrendingUp, Clock, Search, Award, Building2, UserPlus } from 'lucide-react';
+
+function rowToColab(r: ColaboradorRow): Colaborador {
+  return {
+    id: r.id,
+    name: r.nome,
+    email: r.email ?? undefined,
+    cargo: r.cargo_nome ?? '',
+    area: r.area,
+    gestorId: r.gestor_id ?? '',
+    gestorNome: r.gestor_nome ?? '',
+    dataAdmissao: r.data_admissao,
+    dataDesligamento: r.data_desligamento ?? undefined,
+    status: r.status as 'ativo' | 'desligado',
+  };
+}
 
 export default function RHGestaoPessoasPage() {
   const router = useRouter();
@@ -15,29 +32,27 @@ export default function RHGestaoPessoasPage() {
   const [filtroArea, setFiltroArea] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<'dashboard' | 'colaboradores' | 'organograma' | 'talentos'>('dashboard');
+  const [modalCriar, setModalCriar] = useState(false);
+  const [criarLoading, setCriarLoading] = useState(false);
+  const [criarError, setCriarError] = useState('');
+  const [criarForm, setCriarForm] = useState({ nome: '', email: '', password: '', role: 'colaborador' as 'rh'|'gestor'|'gestao'|'colaborador', area: '', data_admissao: new Date().toISOString().slice(0, 10) });
 
   useEffect(() => {
-    const currentUserStr = localStorage.getItem('currentUser');
-    if (!currentUserStr) {
-      router.push('/');
-      return;
-    }
-
-    try {
-      const currentUser = JSON.parse(currentUserStr);
-      if (currentUser.role !== 'rh') {
-        router.push('/');
-        return;
+    let cancelled = false;
+    const load = async () => {
+      const supabase = createClient();
+      if (supabase) {
+        const rows = await fetchColaboradoresRH(supabase);
+        if (!cancelled) setColaboradores(rows.map(rowToColab));
+      } else {
+        const cols = getAllColaboradores().filter(c => c.status === 'ativo');
+        if (!cancelled) setColaboradores(cols);
       }
-
-      const cols = getAllColaboradores().filter(c => c.status === 'ativo');
-      setColaboradores(cols);
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [router]);
+      if (!cancelled) setLoading(false);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
 
   const colaboradoresFiltrados = colaboradores.filter((colab) => {
     const matchBusca = busca === '' || 
@@ -73,7 +88,13 @@ export default function RHGestaoPessoasPage() {
           <h1 className="text-3xl font-bold text-white">Gestão de Pessoas</h1>
           <p className="mt-2 text-gray-300">Acompanhamento completo dos colaboradores</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => setModalCriar(true)}
+            className="px-4 py-2 rounded-lg bg-ecosystem-red text-white hover:opacity-90 flex items-center gap-2"
+          >
+            <UserPlus size={18} /> Criar usuário
+          </button>
           <button
             onClick={() => setView('dashboard')}
             className={`px-4 py-2 rounded-lg transition-colors ${
@@ -264,6 +285,128 @@ export default function RHGestaoPessoasPage() {
             <Award size={48} className="mx-auto mb-4 text-gray-500" />
             <p>Mapa de talentos em desenvolvimento</p>
             <p className="text-sm mt-2">Matriz de competências e habilidades dos colaboradores</p>
+          </div>
+        </div>
+      )}
+
+      {modalCriar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div className="bg-gray-900 border border-gray-700 rounded-lg max-w-md w-full p-6">
+            <h2 className="text-xl font-bold text-white mb-4">Criar usuário (Supabase Auth)</h2>
+            {criarError && <p className="text-red-400 text-sm mb-4">{criarError}</p>}
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setCriarLoading(true);
+                setCriarError('');
+                try {
+                  const res = await fetch('/api/rh/criar-usuario', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      nome: criarForm.nome,
+                      email: criarForm.email,
+                      password: criarForm.password || undefined,
+                      role: criarForm.role,
+                      area: criarForm.area || undefined,
+                      data_admissao: criarForm.data_admissao || undefined,
+                    }),
+                  });
+                  const data = await res.json().catch(() => ({}));
+                  if (!res.ok) {
+                    setCriarError(data.error || 'Erro ao criar usuário');
+                    return;
+                  }
+                  setModalCriar(false);
+                  setCriarForm({ nome: '', email: '', password: '', role: 'colaborador', area: '', data_admissao: new Date().toISOString().slice(0, 10) });
+                  const supabase = createClient();
+                  if (supabase) {
+                    const rows = await fetchColaboradoresRH(supabase);
+                    setColaboradores(rows.map(rowToColab));
+                  }
+                } finally {
+                  setCriarLoading(false);
+                }
+              }}
+              className="space-y-4"
+            >
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Nome</label>
+                <input
+                  type="text"
+                  value={criarForm.nome}
+                  onChange={(e) => setCriarForm((f) => ({ ...f, nome: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-white"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={criarForm.email}
+                  onChange={(e) => setCriarForm((f) => ({ ...f, email: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-white"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Senha (opcional; sem senha = magic link)</label>
+                <input
+                  type="password"
+                  value={criarForm.password}
+                  onChange={(e) => setCriarForm((f) => ({ ...f, password: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Perfil (role)</label>
+                <select
+                  value={criarForm.role}
+                  onChange={(e) => setCriarForm((f) => ({ ...f, role: e.target.value as typeof f.role }))}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-white"
+                >
+                  <option value="colaborador">Colaborador</option>
+                  <option value="gestor">Gestor</option>
+                  <option value="rh">RH</option>
+                  <option value="gestao">Gestão</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Área</label>
+                <input
+                  type="text"
+                  value={criarForm.area}
+                  onChange={(e) => setCriarForm((f) => ({ ...f, area: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-white"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-300 mb-1">Data admissão (colaborador)</label>
+                <input
+                  type="date"
+                  value={criarForm.data_admissao}
+                  onChange={(e) => setCriarForm((f) => ({ ...f, data_admissao: e.target.value }))}
+                  className="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded text-white"
+                />
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <button
+                  type="button"
+                  onClick={() => setModalCriar(false)}
+                  className="px-4 py-2 rounded bg-gray-700 text-gray-300 hover:bg-gray-600"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={criarLoading}
+                  className="px-4 py-2 rounded bg-ecosystem-red text-white hover:opacity-90 disabled:opacity-50"
+                >
+                  {criarLoading ? 'Criando...' : 'Criar'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
