@@ -107,3 +107,13 @@ Se ao fazer login aparecer **"Database error querying schema"** ou a requisiçã
 
 4. **Usuários criados via SQL com 500 no login**  
    Se os usuários foram criados com o `seed_usuarios_teste_auth.sql` e o login retorna "Database error querying schema", as colunas de token em `auth.users` não podem ser NULL. Rode no **SQL Editor** o bloco de **UPDATE** que está no final do próprio `seed_usuarios_teste_auth.sql` (ou rode o script inteiro de novo; ele também inclui esse UPDATE). Isso define `confirmation_token`, `email_change`, `email_change_token_new` e `recovery_token` como string vazia nos usuários de teste.
+
+5. **"Email not confirmed" no login**  
+   Usuários criados via SQL podem ter o e-mail não confirmado. Rode no **SQL Editor** (ou o script completo `seed_usuarios_teste_auth.sql`, que já inclui isso):
+   ```sql
+   UPDATE auth.users
+   SET email_confirmed_at = COALESCE(email_confirmed_at, now())
+   WHERE email IN ('rh@empresa.com', 'gestao@empresa.com', 'gestor@empresa.com', 'colaborador@empresa.com')
+     AND email_confirmed_at IS NULL;
+   ```
+   Depois tente fazer login de novo.

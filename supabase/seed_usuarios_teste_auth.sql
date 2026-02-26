@@ -85,6 +85,12 @@ SET confirmation_token = COALESCE(confirmation_token, ''),
 WHERE email IN ('rh@empresa.com', 'gestao@empresa.com', 'gestor@empresa.com', 'colaborador@empresa.com')
   AND (confirmation_token IS NULL OR email_change IS NULL OR email_change_token_new IS NULL OR recovery_token IS NULL);
 
+-- Marca e-mail como confirmado (evita "Email not confirmed" no login)
+UPDATE auth.users
+SET email_confirmed_at = COALESCE(email_confirmed_at, now())
+WHERE email IN ('rh@empresa.com', 'gestao@empresa.com', 'gestor@empresa.com', 'colaborador@empresa.com')
+  AND email_confirmed_at IS NULL;
+
 -- O trigger on_auth_user_created já criou os perfis em public.profiles.
 -- Agora inserir o colaborador em public.colaboradores (para Ponto, Solicitações, Disponibilidade).
 INSERT INTO public.colaboradores (
