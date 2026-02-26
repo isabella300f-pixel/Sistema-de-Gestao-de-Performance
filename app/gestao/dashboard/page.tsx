@@ -121,7 +121,7 @@ export default function GestaoDashboardPage() {
   const classeDropdownItem = 'flex items-center gap-2 px-4 py-2.5 hover:bg-gray-700 cursor-pointer text-sm text-white border-b border-gray-700/50 last:border-0';
 
   const carregarDadosPlanilha = async () => {
-    const timeoutMs = 12000;
+    const timeoutMs = 6000; // 6s: em prod a API responde em até 8s; abort antes para não travar
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -207,7 +207,7 @@ export default function GestaoDashboardPage() {
     const DEV = process.env.NEXT_PUBLIC_DEV_LOGIN === 'true';
     let currentUserStr = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
     let cancelled = false;
-    const loadingDeadline = 15000; // máx 15s de loading
+    const loadingDeadline = 8000; // máx 8s de loading (API planilha responde em até 8s em prod)
     const deadlineId = setTimeout(() => {
       if (!cancelled) setLoading(false);
     }, loadingDeadline);

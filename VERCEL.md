@@ -11,7 +11,9 @@ Em **Settings → Environment Variables** do projeto Vercel, configure:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Sim (prod) | Chave anon (pública) do Supabase |
 | `SUPABASE_SERVICE_ROLE_KEY` | Sim (prod) | Chave service_role (somente servidor; nunca expor no client) |
 
-Opcionais (planilha, etc.): `GOOGLE_SHEETS_API_KEY`, `SPREADSHEET_ID`, `PUBLISHED_CSV_URL`.
+Opcionais (planilha; se não configurado, o Dashboard Executivo mostra "Planilha indisponível" em até ~8s):
+- `PUBLISHED_CSV_URL` — URL pública do CSV da planilha (ex.: `.../pub?output=csv&gid=...`)
+- ou `GOOGLE_SHEETS_API_KEY` + `SPREADSHEET_ID` (+ opcional `SHEET_RANGE`, padrão `A:Z`)
 
 ## Build
 

@@ -117,6 +117,7 @@ export default function Layout({ children, user, menuItems }: LayoutProps) {
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={false}
                     onClick={() => setSidebarOpen(false)}
                     className={`${
                       isActive

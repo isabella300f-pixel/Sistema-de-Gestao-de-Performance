@@ -127,15 +127,36 @@ async function syncSheetToSupabase(rows: SheetRowRaw[]): Promise<{ ok: boolean; 
   }
 }
 
+const API_MAX_MS = 8000; // Em prod, responder em no máx 8s para não travar o dashboard
+
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const bust = searchParams.get('_') || String(Date.now());
 
-    // CSV primeiro (mapeamento correto). API como fallback se CSV falhar.
-    let result = await fetchViaPublishedUrl(bust);
-    if (!(result?.ok && Array.isArray(result.data) && result.data.length > 0)) {
-      result = await fetchViaApi();
+    const fetchWithTimeout = async (): Promise<{ data: unknown[]; ok: boolean } | null> => {
+      let result = await fetchViaPublishedUrl(bust);
+      if (!(result?.ok && Array.isArray(result.data) && result.data.length > 0)) {
+        result = await fetchViaApi();
+      }
+      return result ?? null;
+    };
+
+    const timeoutPromise = new Promise<null>((_, reject) =>
+      setTimeout(() => reject(new Error('Timeout')), API_MAX_MS)
+    );
+
+    let result: { data: unknown[]; ok: boolean } | null = null;
+    try {
+      result = await Promise.race([fetchWithTimeout(), timeoutPromise]);
+    } catch (e) {
+      if (String(e).includes('Timeout')) {
+        return NextResponse.json(
+          { data: [], error: 'Planilha indisponível (timeout). Configure no Vercel: PUBLISHED_CSV_URL ou GOOGLE_SHEETS_API_KEY + SPREADSHEET_ID.', ok: false },
+          { status: 200, headers: NO_CACHE_HEADERS }
+        );
+      }
+      throw e;
     }
 
     if (result?.ok && Array.isArray(result.data) && result.data.length > 0) {
@@ -149,14 +170,14 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json(
-      { data: [], error: 'Planilha indisponível ou sem dados', ok: false },
+      { data: [], error: 'Planilha indisponível ou sem dados. Em produção, configure no Vercel: PUBLISHED_CSV_URL ou GOOGLE_SHEETS_API_KEY + SPREADSHEET_ID.', ok: false },
       { status: 200, headers: NO_CACHE_HEADERS }
     );
   } catch (e) {
     console.error('Erro ao buscar planilha:', e);
     return NextResponse.json(
-      { error: 'Erro ao sincronizar com a planilha', ok: false },
-      { status: 500, headers: NO_CACHE_HEADERS }
+      { data: [], error: 'Erro ao sincronizar com a planilha', ok: false },
+      { status: 200, headers: NO_CACHE_HEADERS }
     );
   }
 }
