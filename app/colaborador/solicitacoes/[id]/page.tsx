@@ -89,6 +89,8 @@ export default function DetalhesSolicitacaoPage() {
             protocolo: 'SOL-2024-001',
             tipo: 'indisponibilidade_temporaria',
             motivo: 'Compromisso médico',
+            impactoAtividades: false,
+            reposicao: 'nao_se_aplica',
             status: 'em_analise',
             dataCriacao: '2024-12-10',
             dataAtualizacao: '2024-12-10',
