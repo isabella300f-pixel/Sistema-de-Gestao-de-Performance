@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 /** Redireciona para o fluxo de Solicitações. O chat foi substituído pelo acompanhamento dentro de cada solicitação. */
-export default function ColaboradorChatPage() {
+function ChatRedirectContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -21,5 +21,17 @@ export default function ColaboradorChatPage() {
     <div className="flex items-center justify-center min-h-[40vh]">
       <p className="text-gray-500">Redirecionando para Solicitações...</p>
     </div>
+  );
+}
+
+export default function ColaboradorChatPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <p className="text-gray-500">Carregando...</p>
+      </div>
+    }>
+      <ChatRedirectContent />
+    </Suspense>
   );
 }
