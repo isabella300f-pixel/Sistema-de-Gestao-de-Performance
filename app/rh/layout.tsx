@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Layout from '@/components/Layout';
 import { getCurrentUser } from '@/lib/auth';
 import type { User } from '@/types';
-import { Users, FileText, BarChart3, Clock, Briefcase, GraduationCap, FolderOpen, Heart, DollarSign, Settings, Calendar } from 'lucide-react';
+import { Users, FileText, BarChart3, Clock, Briefcase, GraduationCap, FolderOpen, Heart, DollarSign, Settings, Calendar, MessageSquare } from 'lucide-react';
 
 export default function RHLayout({
   children,
