@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Colaborador, Avaliacao11, IndicadoresColaborador, RegistroDiario } from '@/types';
 import { getAllColaboradores, getAllAvaliacoes11, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
@@ -15,6 +15,7 @@ import { ptBR } from 'date-fns/locale';
 
 export default function GestaoDashboardPage() {
   const router = useRouter();
+  const pathname = usePathname();
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao11[]>([]);
   const [registrosDiarios, setRegistrosDiarios] = useState<RegistroDiario[]>([]);
@@ -205,10 +206,16 @@ export default function GestaoDashboardPage() {
   useEffect(() => {
     const DEV = process.env.NEXT_PUBLIC_DEV_LOGIN === 'true';
     let currentUserStr = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
+    let cancelled = false;
+    const loadingDeadline = 15000; // máx 15s de loading
+    const deadlineId = setTimeout(() => {
+      if (!cancelled) setLoading(false);
+    }, loadingDeadline);
 
     const load = async () => {
       if (!currentUserStr && !DEV) {
         const u = await getCurrentUser();
+        if (cancelled) return;
         if (u && u.role === 'gestao') {
           try {
             const payload = JSON.stringify({ id: u.id, name: u.name, email: u.email, role: u.role });
@@ -243,11 +250,15 @@ export default function GestaoDashboardPage() {
         setRegistrosDiarios([]);
         setDadosDaPlanilha(false);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     load();
+    return () => {
+      cancelled = true;
+      clearTimeout(deadlineId);
+    };
   }, [router]);
 
   // Não alterar filtros quando os dados carregam: manter sempre o que o usuário escolheu (ou mês atual no primeiro load).
@@ -560,7 +571,7 @@ export default function GestaoDashboardPage() {
     });
   })();
 
-  if (loading) {
+  if (loading && pathname === '/gestao/dashboard') {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

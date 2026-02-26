@@ -23,9 +23,14 @@ export default function Layout({ children, user, menuItems }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = async () => {
-    if (DEV) {
-      storage.removeItem('currentUser');
-    } else {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('currentUser');
+      } catch {
+        if (DEV) storage.removeItem('currentUser');
+      }
+    }
+    if (!DEV) {
       const supabase = createClient();
       if (supabase) await supabase.auth.signOut();
     }
@@ -138,8 +143,8 @@ export default function Layout({ children, user, menuItems }: LayoutProps) {
           />
         )}
 
-        {/* Main content */}
-        <main className="flex-1 min-w-0 bg-black">
+        {/* Main content: key por pathname força remontagem ao trocar de rota (evita mesma tela em prod) */}
+        <main key={pathname} className="flex-1 min-w-0 bg-black">
           <div className="py-4 sm:py-6">
             <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 w-full overflow-x-hidden">
               {children}
