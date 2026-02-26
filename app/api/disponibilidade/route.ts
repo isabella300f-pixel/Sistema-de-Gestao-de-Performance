@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getDevUser, devDisponibilidadeGET, devDisponibilidadePOST } from '@/lib/dev-api';
 
 export async function GET(request: NextRequest) {
+  const devUser = getDevUser(request);
+  if (devUser) {
+    const list = devDisponibilidadeGET(devUser);
+    return NextResponse.json(list);
+  }
+
   const supabase = await createClient();
   if (!supabase) return NextResponse.json({ error: 'Não configurado' }, { status: 503 });
 
@@ -46,6 +53,19 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const devUser = getDevUser(request);
+  if (devUser && devUser.role === 'colaborador') {
+    let body: Record<string, unknown>;
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Body inválido' }, { status: 400 });
+    }
+    if (!body.tipo || !body.data_inicio || !body.motivo) return NextResponse.json({ error: 'tipo, data_inicio e motivo obrigatórios' }, { status: 400 });
+    const data = devDisponibilidadePOST(devUser, body);
+    if (data) return NextResponse.json(data, { status: 201 });
+  }
+
   const supabase = await createClient();
   if (!supabase) return NextResponse.json({ error: 'Não configurado' }, { status: 503 });
 

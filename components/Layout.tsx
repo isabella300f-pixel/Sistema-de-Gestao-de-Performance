@@ -26,6 +26,7 @@ export default function Layout({ children, user, menuItems }: LayoutProps) {
     if (typeof window !== 'undefined') {
       try {
         localStorage.removeItem('currentUser');
+        document.cookie = 'devUser=; path=/; max-age=0';
       } catch {
         if (DEV) storage.removeItem('currentUser');
       }

@@ -89,6 +89,7 @@ function LoginPageContent() {
     try {
       const { password: _, ...rest } = user;
       localStorage.setItem('currentUser', JSON.stringify(rest));
+      document.cookie = `devUser=${encodeURIComponent(JSON.stringify({ id: user.id, role: user.role, name: user.name }))}; path=/; max-age=86400; SameSite=Lax`;
       setError('');
       setTimeout(() => redirectByRole(user.role), 50);
     } catch {

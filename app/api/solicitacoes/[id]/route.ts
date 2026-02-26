@@ -1,11 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getDevUser, devSolicitacaoGET, devSolicitacaoPATCH } from '@/lib/dev-api';
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const devUser = getDevUser(request);
+  if (devUser) {
+    const sol = devSolicitacaoGET(id, devUser);
+    if (!sol) return NextResponse.json({ error: 'Solicitação não encontrada' }, { status: 404 });
+    const mensagens = sol.mensagens.map((m) => ({
+      id: m.id,
+      solicitacaoId: id,
+      remetenteId: m.remetente_id,
+      remetenteNome: m.remetente_tipo === 'rh' ? 'RH' : (devUser.id === m.remetente_id ? devUser.name ?? 'Você' : 'Colaborador'),
+      remetenteTipo: m.remetente_tipo,
+      mensagem: m.mensagem,
+      data: m.criado_em,
+    }));
+    return NextResponse.json({ ...sol, mensagens });
+  }
+
   const supabase = await createClient();
   if (!supabase) return NextResponse.json({ error: 'Não configurado' }, { status: 503 });
 
@@ -53,6 +70,21 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
+  const devUser = getDevUser(request);
+  if (devUser && (devUser.role === 'rh' || devUser.role === 'gestao')) {
+    let body: { status?: string };
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Body inválido' }, { status: 400 });
+    }
+    const status = body.status;
+    if (!status || !['aberto','em_analise','aprovado','rejeitado','aguardando_documentos'].includes(status))
+      return NextResponse.json({ error: 'status inválido' }, { status: 400 });
+    if (devSolicitacaoPATCH(id, status, devUser)) return NextResponse.json({ ok: true });
+    return NextResponse.json({ error: 'Solicitação não encontrada' }, { status: 404 });
+  }
+
   const supabase = await createClient();
   if (!supabase) return NextResponse.json({ error: 'Não configurado' }, { status: 503 });
 

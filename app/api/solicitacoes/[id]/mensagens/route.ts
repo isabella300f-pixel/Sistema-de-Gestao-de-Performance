@@ -1,11 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getDevUser, devSolicitacaoMensagemPOST } from '@/lib/dev-api';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id: solicitacaoId } = await params;
+  const devUser = getDevUser(request);
+  if (devUser) {
+    let body: { mensagem: string };
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Body inválido' }, { status: 400 });
+    }
+    if (!body.mensagem?.trim()) return NextResponse.json({ error: 'mensagem obrigatória' }, { status: 400 });
+    const msg = devSolicitacaoMensagemPOST(solicitacaoId, devUser, body.mensagem);
+    if (msg) return NextResponse.json({ id: msg.id, criado_em: msg.criado_em }, { status: 201 });
+    return NextResponse.json({ error: 'Solicitação não encontrada' }, { status: 404 });
+  }
+
   const supabase = await createClient();
   if (!supabase) return NextResponse.json({ error: 'Não configurado' }, { status: 503 });
 

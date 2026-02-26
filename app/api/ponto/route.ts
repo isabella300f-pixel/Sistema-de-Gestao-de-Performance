@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getDevUser, devPontoGET, devPontoGETAll, devPontoPOST } from '@/lib/dev-api';
 
 function hoje(): string {
   const d = new Date();
@@ -25,6 +26,17 @@ function calcularHoras(entrada: string | null, saida: string | null, entradaAlmo
 }
 
 export async function GET(request: NextRequest) {
+  const devUser = getDevUser(request);
+  if (devUser) {
+    const { searchParams } = new URL(request.url);
+    const mes = searchParams.get('mes') || hoje().slice(0, 7);
+    const colaboradorIdParam = searchParams.get('colaborador_id');
+    const list = (devUser.role === 'rh' || devUser.role === 'gestao')
+      ? (colaboradorIdParam ? devPontoGET(colaboradorIdParam, mes) : devPontoGETAll(mes))
+      : devPontoGET(devUser.id, mes);
+    return NextResponse.json(list.map((r) => ({ ...r, colaboradores: r.colaborador_id ? { nome: r.colaborador_id } : null })));
+  }
+
   const supabase = await createClient();
   if (!supabase) return NextResponse.json({ error: 'Não configurado' }, { status: 503 });
 
@@ -76,6 +88,20 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const devUser = getDevUser(request);
+  if (devUser && (devUser.role === 'colaborador' || devUser.role === 'gestor')) {
+    let body: { tipo: string; data?: string };
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json({ error: 'Body inválido' }, { status: 400 });
+    }
+    const tipo = body.tipo === 'entrada' || body.tipo === 'saida' || body.tipo === 'entrada_almoco' || body.tipo === 'saida_almoco' ? body.tipo : 'entrada';
+    const dataReg = body.data && /^\d{4}-\d{2}-\d{2}$/.test(body.data) ? body.data : hoje();
+    const inserted = devPontoPOST(devUser.id, tipo, dataReg);
+    if (inserted) return NextResponse.json(inserted, { status: 201 });
+  }
+
   const supabase = await createClient();
   if (!supabase) return NextResponse.json({ error: 'Não configurado' }, { status: 503 });
 
