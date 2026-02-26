@@ -1,10 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServiceRoleClient } from '@/lib/supabase/server';
+import { createClient, getServiceRoleClient } from '@/lib/supabase/server';
 import type { UserRole } from '@/types';
 
 const ROLES: UserRole[] = ['rh', 'gestor', 'gestao', 'colaborador'];
 
+/** Apenas RH ou Gestão podem criar usuários no sistema (Supabase Auth + profiles + colaboradores). */
 export async function POST(request: NextRequest) {
+  const authClient = await createClient();
+  if (authClient) {
+    const { data: { user } } = await authClient.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Faça login para criar usuários.' }, { status: 401 });
+    }
+    const { data: profile } = await authClient.from('profiles').select('role').eq('id', user.id).single();
+    const role = profile?.role as string | undefined;
+    if (role !== 'rh' && role !== 'gestao') {
+      return NextResponse.json({ error: 'Apenas RH ou Gestão podem criar usuários.' }, { status: 403 });
+    }
+  }
+
   const supabase = getServiceRoleClient();
   if (!supabase) {
     return NextResponse.json({ error: 'Supabase não configurado' }, { status: 500 });

@@ -72,7 +72,7 @@ export default function ColaboradorPontoPage() {
       } else {
         const err = await res.json().catch(() => ({}));
         if (res.status === 401 || res.status === 503) {
-          alert('Registro de ponto indisponível no momento. Use o modo demonstração ou faça login com Supabase.');
+          alert('Faça login com email e senha (Supabase) para registrar ponto.');
         } else {
           alert(err?.error || 'Erro ao registrar.');
         }

@@ -67,9 +67,15 @@ export default function RHDisponibilidadePage() {
         if (res.ok) {
           const data = await res.json();
           setList(Array.isArray(data) ? data.map((r: Record<string, unknown>) => mapRow(r)) : []);
+        } else {
+          setList([
+            { id: 'mock-1', colaboradorId: 'colab-1', colaboradorNome: 'Colaborador exemplo', tipo: 'horarios_disponiveis', dataInicio: '2025-01-01', motivo: 'Dados demonstrativos', status: 'pendente', dataCriacao: new Date().toISOString() },
+          ]);
         }
       } catch {
-        setList([]);
+        setList([
+          { id: 'mock-1', colaboradorId: 'colab-1', colaboradorNome: 'Colaborador exemplo', tipo: 'horarios_disponiveis', dataInicio: '2025-01-01', motivo: 'Dados demonstrativos', status: 'pendente', dataCriacao: new Date().toISOString() },
+        ]);
       } finally {
         if (!cancelled) setLoading(false);
       }

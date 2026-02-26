@@ -37,10 +37,14 @@ export default function RHSolicitacoesPage() {
           const list = Array.isArray(data) ? data.map((r: Record<string, unknown>) => mapRowToSolicitacao(r)) : [];
           setSolicitacoes(list);
         } else {
-          setSolicitacoes([]);
+          setSolicitacoes([
+            { id: 'mock-1', colaboradorId: 'colab-1', protocolo: 'SOL-2024-001', tipo: 'indisponibilidade_temporaria', motivo: 'Exemplo (dados demonstrativos)', impactoAtividades: false, reposicao: 'nao_se_aplica', status: 'em_analise', dataCriacao: new Date().toISOString(), dataAtualizacao: new Date().toISOString() },
+          ]);
         }
       } catch {
-        setSolicitacoes([]);
+        setSolicitacoes([
+          { id: 'mock-1', colaboradorId: 'colab-1', protocolo: 'SOL-2024-001', tipo: 'indisponibilidade_temporaria', motivo: 'Exemplo (dados demonstrativos)', impactoAtividades: false, reposicao: 'nao_se_aplica', status: 'em_analise', dataCriacao: new Date().toISOString(), dataAtualizacao: new Date().toISOString() },
+        ]);
       } finally {
         if (!cancelled) setLoading(false);
       }

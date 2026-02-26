@@ -160,6 +160,18 @@
 
 ---
 
+## Login real e usuários de teste (Supabase)
+
+Para testar **Ponto**, **Solicitações** e **Disponibilidade** com login real (sem modo demonstração):
+
+1. Crie os usuários no **Supabase** (Authentication → Users) e rode o SQL de seed.
+2. Use os **e-mails e senhas de exemplo** descritos no guia.
+
+**Guia completo:** [USUARIOS_TESTE_SUPABASE.md](./USUARIOS_TESTE_SUPABASE.md)  
+**SQL de seed:** [supabase/seed_usuarios_teste.sql](./supabase/seed_usuarios_teste.sql)
+
+---
+
 ## Arquivos criados ou alterados (referência)
 
 - **Novos:**  
