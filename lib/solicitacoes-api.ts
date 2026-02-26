@@ -5,6 +5,7 @@ export function mapRowToSolicitacao(row: Record<string, unknown>): SolicitacaoRH
   const r = row as Record<string, unknown> & {
     colaboradores?: { nome?: string; email?: string };
   };
+  const prioridade = r.prioridade ? (r.prioridade as 'baixa' | 'media' | 'alta') : undefined;
   return {
     id: String(r.id),
     colaboradorId: String(r.colaborador_id),
@@ -17,10 +18,10 @@ export function mapRowToSolicitacao(row: Record<string, unknown>): SolicitacaoRH
     impactoAtividades: Boolean(r.impacto_atividades),
     reposicao: (r.reposicao as SolicitacaoRH['reposicao']) ?? 'nao_se_aplica',
     status: (r.status as SolicitacaoRH['status']) ?? 'aberto',
-    prioridade: r.prioridade ? (r.prioridade as 'baixa' | 'media' | 'alta') : undefined,
     dataCriacao: String(r.criado_em),
     dataAtualizacao: String(r.atualizado_em ?? r.criado_em),
-  };
+    ...(prioridade !== undefined && { prioridade }),
+  } as SolicitacaoRH;
 }
 
 /** Converte mensagem da API para MensagemSolicitacao. */

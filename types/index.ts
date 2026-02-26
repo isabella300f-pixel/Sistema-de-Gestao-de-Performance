@@ -400,6 +400,7 @@ export interface SolicitacaoRH {
   reposicao: 'precisa' | 'alinhado' | 'nao_precisa' | 'nao_se_aplica';
   pessoaReposicao?: string;
   anexos?: string[]; // URLs dos arquivos
+  prioridade?: 'baixa' | 'media' | 'alta';
   status: 'aberto' | 'em_analise' | 'aprovado' | 'rejeitado' | 'aguardando_documentos';
   dataCriacao: string;
   dataAtualizacao: string;
