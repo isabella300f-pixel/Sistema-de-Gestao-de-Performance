@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { authenticateUser, getAllUsers } from '@/lib/data';
 import { createClient } from '@/lib/supabase/client';
+import { getCurrentUser } from '@/lib/auth';
 import Logo300F from '@/components/Logo300F';
 import { ChevronRight, Eye, EyeOff } from 'lucide-react';
 
@@ -16,6 +17,7 @@ function LoginPageContent() {
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(!DEV_LOGIN);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -25,6 +27,36 @@ function LoginPageContent() {
     const err = searchParams.get('error');
     if (err === 'auth') setError('Falha na autenticação. Tente novamente.');
   }, [searchParams]);
+
+  // Em produção: ao carregar /, verificar sessão Supabase e preencher localStorage + redirecionar
+  useEffect(() => {
+    if (!mounted || DEV_LOGIN) {
+      if (DEV_LOGIN) setCheckingSession(false);
+      return;
+    }
+    let cancelled = false;
+    getCurrentUser()
+      .then((u) => {
+        if (cancelled || !u) {
+          if (!cancelled) setCheckingSession(false);
+          return;
+        }
+        try {
+          localStorage.setItem('currentUser', JSON.stringify({ id: u.id, name: u.name, email: u.email, role: u.role }));
+          const routes: Record<string, string> = {
+            gestor: '/gestor/dashboard',
+            rh: '/rh/painel',
+            gestao: '/gestao/dashboard',
+            colaborador: '/colaborador/solicitacoes',
+          };
+          router.replace(routes[u.role] ?? '/colaborador/solicitacoes');
+        } catch {
+          setCheckingSession(false);
+        }
+      })
+      .catch(() => setCheckingSession(false));
+    return () => { cancelled = true; };
+  }, [mounted, router]);
 
   const redirectByRole = (role: string) => {
     const routes: Record<string, string> = {
@@ -118,7 +150,7 @@ function LoginPageContent() {
     setError('');
   };
 
-  if (!mounted) {
+  if (!mounted || checkingSession) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
         <div className="text-center">

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Colaborador, Avaliacao11, IndicadoresColaborador, RegistroDiario } from '@/types';
 import { getAllColaboradores, getAllAvaliacoes11, getColaboradorIdByName, setRegistrosDiariosFromSheet } from '@/lib/data';
+import { getCurrentUser } from '@/lib/auth';
 import { mapSheetRowsToRegistros } from '@/lib/sheet';
 import { calculateScore } from '@/lib/utils';
 import { TrendingUp, TrendingDown, AlertTriangle, Users, Award, XCircle, Phone, PhoneCall, FileText, Globe, ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react';
@@ -119,9 +120,17 @@ export default function GestaoDashboardPage() {
   const classeDropdownItem = 'flex items-center gap-2 px-4 py-2.5 hover:bg-gray-700 cursor-pointer text-sm text-white border-b border-gray-700/50 last:border-0';
 
   const carregarDadosPlanilha = async () => {
+    const timeoutMs = 12000;
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const bust = Date.now();
-      const res = await fetch(`/api/sheet/registros-diarios?_=${bust}`, { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
+      const res = await fetch(`/api/sheet/registros-diarios?_=${bust}`, {
+        cache: 'no-store',
+        headers: { 'Cache-Control': 'no-store' },
+        signal: controller.signal,
+      });
+      clearTimeout(t);
       const json = await res.json();
       
       console.log(`🔄 Buscando dados da planilha...`);
@@ -185,8 +194,8 @@ export default function GestaoDashboardPage() {
       setRegistrosDiarios([]);
       setDadosDaPlanilha(false);
     } catch (error) {
+      clearTimeout(t);
       console.error('❌ Erro ao carregar dados da planilha:', error);
-      // Em caso de erro, limpar dados
       setRegistrosDiariosFromSheet([]);
       setRegistrosDiarios([]);
       setDadosDaPlanilha(false);
@@ -194,13 +203,28 @@ export default function GestaoDashboardPage() {
   };
 
   useEffect(() => {
-    const currentUserStr = localStorage.getItem('currentUser');
-    if (!currentUserStr) {
-      router.push('/');
-      return;
-    }
+    const DEV = process.env.NEXT_PUBLIC_DEV_LOGIN === 'true';
+    let currentUserStr = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
 
     const load = async () => {
+      if (!currentUserStr && !DEV) {
+        const u = await getCurrentUser();
+        if (u && u.role === 'gestao') {
+          try {
+            const payload = JSON.stringify({ id: u.id, name: u.name, email: u.email, role: u.role });
+            localStorage.setItem('currentUser', payload);
+            currentUserStr = payload;
+          } catch {
+            setLoading(false);
+            router.push('/');
+            return;
+          }
+        }
+      }
+      if (!currentUserStr) {
+        router.push('/');
+        return;
+      }
       try {
         const currentUser = JSON.parse(currentUserStr);
         if (currentUser.role !== 'gestao') {
