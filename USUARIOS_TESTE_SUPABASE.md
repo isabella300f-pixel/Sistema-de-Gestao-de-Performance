@@ -89,3 +89,21 @@ Em produção, **RH** e **Gestão** podem criar novos usuários no sistema (Supa
 A API `POST /api/rh/criar-usuario` está restrita: só quem estiver logado com perfil **RH** ou **Gestão** pode chamá-la; demais usuários recebem 403.
 
 A tela **RH** → **Usuários** hoje usa apenas dados em memória (modo demonstração); para listar e criar usuários reais do Supabase por essa tela seria necessário conectá-la à API e a um endpoint de listagem.
+
+---
+
+## 7. Erro "Database error querying schema" ou 500 em /auth/v1/token
+
+Se ao fazer login aparecer **"Database error querying schema"** ou a requisição para `/auth/v1/token` retornar **500**:
+
+1. **Verifique os logs do Supabase**  
+   Supabase Dashboard → **Logs** → **Auth** (ou API). O log mostra o erro real do PostgreSQL (ex.: coluna ausente, trigger falhando).
+
+2. **Teste criar o usuário pelo Dashboard**  
+   Em **Authentication** → **Users** → **Add user**, crie um usuário com o mesmo e-mail e senha (`rh@empresa.com` / `Teste@123`). Se o login funcionar, o problema provavelmente é o insert via SQL (schema do `auth.users` pode ter mudado). Nesse caso, use o Dashboard para criar os usuários e rode só o `seed_usuarios_teste.sql` para ajustar `profiles` e `colaboradores`.
+
+3. **Confirme o e-mail do usuário**  
+   Em **Authentication** → **Users**, abra o usuário e confira se o e-mail está confirmado. Se não estiver, use **Send password recovery** ou **Confirm email** (conforme disponível no painel).
+
+4. **Usuários criados via SQL com 500 no login**  
+   Se os usuários foram criados com o `seed_usuarios_teste_auth.sql` e o login retorna "Database error querying schema", as colunas de token em `auth.users` não podem ser NULL. Rode no **SQL Editor** o bloco de **UPDATE** que está no final do próprio `seed_usuarios_teste_auth.sql` (ou rode o script inteiro de novo; ele também inclui esse UPDATE). Isso define `confirmation_token`, `email_change`, `email_change_token_new` e `recovery_token` como string vazia nos usuários de teste.

@@ -82,7 +82,12 @@ function LoginPageContent() {
     if (password.trim()) {
       const { error: signError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
       if (signError) {
-        setError(signError.message === 'Invalid login credentials' ? 'Email ou senha incorretos.' : signError.message);
+        const msg = signError.message === 'Invalid login credentials'
+          ? 'Email ou senha incorretos.'
+          : signError.message.toLowerCase().includes('database error') || signError.message.toLowerCase().includes('querying schema')
+          ? 'Erro no servidor de autenticação (Supabase). Verifique os logs em Supabase → Logs → Auth ou crie o usuário pelo Dashboard (Authentication → Add user).'
+          : signError.message;
+        setError(msg);
         setLoading(false);
         return;
       }
